@@ -15,24 +15,24 @@ export default function Setting() {
       onPress: () => console.log('Notifications'),
     },
     {
-      title: 'Sécurité',
+      title: 'SÃ©curitÃ©',
       icon: 'shield-checkmark-outline',
-      onPress: () => console.log('Sécurité'),
+      onPress: () => console.log('SÃ©curitÃ©'),
     },
     {
-      title: 'Thème',
+      title: 'ThÃ¨me',
       icon: 'color-palette-outline',
-      onPress: () => console.log('Thème'),
+      onPress: () => console.log('ThÃ¨me'),
     },
     {
-      title: 'À propos',
+      title: 'Ã  propos',
       icon: 'information-circle-outline',
-      onPress: () => console.log('À propos'),
+      onPress: () => console.log('Ã  propos'),
     },
     {
-      title: 'Déconnexion',
+      title: 'DÃ©connexion',
       icon: 'log-out-outline',
-      onPress: () => console.log('Déconnexion'),
+      onPress: () => console.log('DÃ©connexion'),
       danger: true,
     },
   ];
@@ -41,7 +41,7 @@ export default function Setting() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="settings" size={32} color="#007AFF" />
-        <Text style={styles.headerTitle}>Paramètres</Text>
+        <Text style={styles.headerTitle}>Paramï¿½tres</Text>
       </View>
 
       <View style={styles.section}>

@@ -23,7 +23,7 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
               size={24}
@@ -36,7 +36,7 @@ export default function TabLayout() {
         name="election"
         options={{
           title: 'Elections',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Ionicons
               name={focused ? 'ballot' : 'ballot-outline'}
               size={24}
@@ -49,7 +49,7 @@ export default function TabLayout() {
         name="campagne"
         options={{
           title: 'Campagnes',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Ionicons
               name={focused ? 'megaphone' : 'megaphone-outline'}
               size={24}
@@ -62,7 +62,7 @@ export default function TabLayout() {
         name="candidat"
         options={{
           title: 'Candidats',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Ionicons
               name={focused ? 'people' : 'people-outline'}
               size={24}
@@ -75,7 +75,7 @@ export default function TabLayout() {
         name="electeur"
         options={{
           title: 'Électeurs',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}
               size={24}
@@ -88,7 +88,7 @@ export default function TabLayout() {
         name="setting"
         options={{
           title: 'Paramètres',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Ionicons
               name={focused ? 'settings' : 'settings-outline'}
               size={24}
