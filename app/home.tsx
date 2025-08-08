@@ -1,5 +1,5 @@
-import { Text, View, TextInput, Button, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { Text, View } from "react-native";
+import TabBar from "../components/TabBar";
 export default function Home(){
     return(
         <View>

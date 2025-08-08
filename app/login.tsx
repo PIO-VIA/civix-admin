@@ -13,7 +13,7 @@ export default function Login() {
     const handleLogin = () => {
         console.log('Email:', email);
         console.log('Mot de passe:', password);
-        router.push('/home');
+        router.push('/electeur');
     };
 
     return (
