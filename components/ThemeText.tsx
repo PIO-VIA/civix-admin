@@ -28,6 +28,9 @@ type Props = TextProps &{
     color?:string
 }
 
-export function ThemeText( {variant , color, ...rest}: Props){
-    return <Text  style= {styles [variant ?? "single"]}{...rest }/> 
+export function ThemeText( {variant ,style, color, ...rest}: Props){
+    return <Text
+    style={[styles[variant ?? "single"], style, color && { color }]}
+    {...rest}
+  /> 
 }
