@@ -22,7 +22,7 @@ export default function Login() {
 
             <View style={styles.container}>
                 <ThemeText variant="titrelogin" style={styles.title}>
-                    <Icon name="lock-closed-outline" size={24} color="#6A0DAD" /> Connexion Admin
+                    <Icon name="lock-closed-outline" size={24} color="#007BFF" /> Connexion Admin
                 </ThemeText>
                 <Text style={styles.welcomeText}>
                  Bienvenue Admin PIO
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     button: {
-        backgroundColor: "#6A0DAD",
+        backgroundColor: "#007BFF",
         paddingVertical: 14,
         borderRadius: 10,
         alignItems: "center",
