@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { mockDashboardData, formatNumber, formatPercentage } from '../../mock-data';
+import { mockDashboardData, formatNumber, formatPercentage, mockSystemHealth, mockHealthChecks, getHealthStatusColor, getHealthStatusIcon } from '../../mock-data';
 
 export default function Home(){
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -157,6 +157,72 @@ export default function Home(){
                             </View>
                         </Animated.View>
                     ))}
+                </Animated.View>
+
+                {/* État du système */}
+                <Animated.View style={[
+                    styles.section,
+                    { opacity: fadeAnim }
+                ]}>
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name="pulse" size={24} color="#007AFF" />
+                        <Text style={styles.sectionTitle}>État du Système</Text>
+                        <View style={[
+                            styles.healthBadge,
+                            { backgroundColor: getHealthStatusColor(mockSystemHealth.statusGlobal) }
+                        ]}>
+                            <Text style={styles.healthBadgeText}>
+                                {mockSystemHealth.score}%
+                            </Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.systemOverview}>
+                        <View style={styles.systemStat}>
+                            <Text style={styles.systemStatValue}>{mockSystemHealth.servicesActifs}/{mockSystemHealth.servicesTotal}</Text>
+                            <Text style={styles.systemStatLabel}>Services</Text>
+                        </View>
+                        <View style={styles.systemStat}>
+                            <Text style={styles.systemStatValue}>{mockSystemHealth.tempsReponseTotal}ms</Text>
+                            <Text style={styles.systemStatLabel}>Réponse</Text>
+                        </View>
+                        <View style={styles.systemStat}>
+                            <Ionicons 
+                                name={getHealthStatusIcon(mockSystemHealth.statusGlobal) as any} 
+                                size={24} 
+                                color={getHealthStatusColor(mockSystemHealth.statusGlobal)} 
+                            />
+                            <Text style={styles.systemStatLabel}>Statut</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.criticalServices}>
+                        {mockHealthChecks.filter(service => service.statut !== 'HEALTHY').slice(0, 3).map((service, index) => (
+                            <Animated.View 
+                                key={service.id}
+                                style={[
+                                    styles.criticalServiceItem,
+                                    { 
+                                        opacity: fadeAnim,
+                                        transform: [{ translateX: slideAnim }]
+                                    }
+                                ]}
+                            >
+                                <Ionicons 
+                                    name={getHealthStatusIcon(service.statut) as any}
+                                    size={16} 
+                                    color={getHealthStatusColor(service.statut)} 
+                                />
+                                <Text style={styles.criticalServiceName}>{service.nom}</Text>
+                                <Text style={styles.criticalServiceTime}>{service.tempsReponse}ms</Text>
+                            </Animated.View>
+                        ))}
+                    </View>
+
+                    <TouchableOpacity style={styles.viewHealthButton}>
+                        <Text style={styles.viewHealthButtonText}>Voir tous les services</Text>
+                        <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+                    </TouchableOpacity>
                 </Animated.View>
 
                 {/* Actions rapides */}
@@ -371,5 +437,75 @@ const styles = StyleSheet.create({
         marginTop: 4,
         textAlign: 'center',
         fontWeight: '500',
+    },
+    healthBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    healthBadgeText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    systemOverview: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 16,
+        paddingVertical: 12,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 8,
+    },
+    systemStat: {
+        alignItems: 'center',
+    },
+    systemStatValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000',
+        marginBottom: 4,
+    },
+    systemStatLabel: {
+        fontSize: 12,
+        color: '#666',
+        textAlign: 'center',
+    },
+    criticalServices: {
+        marginBottom: 12,
+    },
+    criticalServiceItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginBottom: 4,
+        backgroundColor: '#FFF8E1',
+        borderRadius: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#FFC107',
+    },
+    criticalServiceName: {
+        flex: 1,
+        fontSize: 14,
+        color: '#000',
+        marginLeft: 8,
+        fontWeight: '500',
+    },
+    criticalServiceTime: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '500',
+    },
+    viewHealthButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+    },
+    viewHealthButtonText: {
+        fontSize: 14,
+        color: '#007AFF',
+        fontWeight: '500',
+        marginRight: 4,
     },
 });

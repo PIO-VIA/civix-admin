@@ -85,6 +85,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="healthcheck"
+        options={{
+          title: 'Système',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Ionicons
+              name={focused ? 'pulse' : 'pulse-outline'}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="setting"
         options={{
           title: 'Paramètres',

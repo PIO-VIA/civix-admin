@@ -1,11 +1,31 @@
-import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import React, { useEffect, useRef, useState } from 'react';
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { mockCampagnes, mockStatistiquesCampagnes, formatNumber, formatCurrency, formatPercentage } from '../../mock-data';
+import { FormModal } from '../../components/crud/FormModal';
+import { ConfirmModal } from '../../components/crud/ConfirmModal';
+import { FormField, SelectField } from '../../components/crud/FormField';
 
 export default function Campagne(){
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(40)).current;
+    
+    // États pour CRUD
+    const [campagnes, setCampagnes] = useState(mockCampagnes);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [selectedCampagne, setSelectedCampagne] = useState<any>(null);
+    const [formData, setFormData] = useState({
+        nom: '',
+        candidatNom: '',
+        electionId: '',
+        budget: '',
+        dateDebut: '',
+        dateFin: '',
+        couleurTheme: '',
+        equipe: ''
+    });
 
     useEffect(() => {
         Animated.parallel([
@@ -21,6 +41,100 @@ export default function Campagne(){
             }),
         ]).start();
     }, []);
+
+    const electionOptions = [
+        { label: 'Élection Présidentielle 2024', value: '1' },
+        { label: 'Élections Municipales Paris', value: '2' },
+        { label: 'Élections Européennes 2024', value: '3' }
+    ];
+
+    const couleurOptions = [
+        { label: 'Rouge', value: '#FF6B6B' },
+        { label: 'Bleu', value: '#4ECDC4' },
+        { label: 'Vert', value: '#45B7D1' },
+        { label: 'Orange', value: '#FFA07A' },
+        { label: 'Violet', value: '#9B59B6' }
+    ];
+
+    const resetForm = () => {
+        setFormData({
+            nom: '',
+            candidatNom: '',
+            electionId: '',
+            budget: '',
+            dateDebut: '',
+            dateFin: '',
+            couleurTheme: '',
+            equipe: ''
+        });
+    };
+
+    const handleCreate = () => {
+        resetForm();
+        setShowCreateModal(true);
+    };
+
+    const handleEdit = (campagne: any) => {
+        setSelectedCampagne(campagne);
+        setFormData({
+            nom: campagne.nom,
+            candidatNom: campagne.candidatNom,
+            electionId: campagne.electionId,
+            budget: campagne.budget.toString(),
+            dateDebut: campagne.dateDebut.split('T')[0],
+            dateFin: campagne.dateFin.split('T')[0],
+            couleurTheme: campagne.couleurTheme,
+            equipe: campagne.equipe.toString()
+        });
+        setShowEditModal(true);
+    };
+
+    const handleDelete = (campagne: any) => {
+        setSelectedCampagne(campagne);
+        setShowDeleteModal(true);
+    };
+
+    const handleSave = () => {
+        if (!formData.nom || !formData.candidatNom || !formData.budget) {
+            Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+            return;
+        }
+
+        const campagneData = {
+            ...formData,
+            id: selectedCampagne ? selectedCampagne.id : Date.now().toString(),
+            candidatId: Date.now().toString(),
+            dateDebut: formData.dateDebut + 'T00:00:00Z',
+            dateFin: formData.dateFin + 'T23:59:59Z',
+            budget: parseInt(formData.budget) || 0,
+            budgetUtilise: selectedCampagne ? selectedCampagne.budgetUtilise : 0,
+            statut: 'ACTIVE',
+            equipe: parseInt(formData.equipe) || 0,
+            evenements: selectedCampagne ? selectedCampagne.evenements : 0,
+            objectifs: selectedCampagne ? selectedCampagne.objectifs : [
+                { nom: 'Meetings publics', progres: 0, total: 10 },
+                { nom: 'Spots TV/Radio', progres: 0, total: 20 },
+                { nom: 'Réseaux sociaux', progres: 0, total: 50 }
+            ]
+        };
+
+        if (selectedCampagne) {
+            setCampagnes(prev => prev.map(c => c.id === selectedCampagne.id ? { ...selectedCampagne, ...campagneData } : c));
+            setShowEditModal(false);
+        } else {
+            setCampagnes(prev => [...prev, campagneData]);
+            setShowCreateModal(false);
+        }
+        
+        resetForm();
+        setSelectedCampagne(null);
+    };
+
+    const confirmDelete = () => {
+        setCampagnes(prev => prev.filter(c => c.id !== selectedCampagne.id));
+        setShowDeleteModal(false);
+        setSelectedCampagne(null);
+    };
 
     const CampagneCard = ({ campagne, index }: any) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
@@ -64,9 +178,14 @@ export default function Campagne(){
                             <Text style={styles.statusText}>{campagne.statut}</Text>
                         </View>
                     </View>
-                    <TouchableOpacity style={styles.moreButton}>
-                        <Ionicons name="ellipsis-vertical" size={20} color="#666" />
-                    </TouchableOpacity>
+                    <View style={styles.cardActionsHeader}>
+                        <TouchableOpacity style={styles.editButton} onPress={() => handleEdit(campagne)}>
+                            <Ionicons name="pencil" size={16} color="#007AFF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.deleteButtonHeader} onPress={() => handleDelete(campagne)}>
+                            <Ionicons name="trash" size={16} color="#DC3545" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <View style={styles.budgetSection}>
@@ -128,7 +247,7 @@ export default function Campagne(){
             <View style={styles.header}>
                 <Ionicons name="megaphone" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Campagnes</Text>
-                <TouchableOpacity style={styles.addButton}>
+                <TouchableOpacity style={styles.addButton} onPress={handleCreate}>
                     <Ionicons name="add" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
@@ -166,7 +285,7 @@ export default function Campagne(){
                     { opacity: fadeAnim }
                 ]}>
                     <Text style={styles.sectionTitle}>Campagnes Actives</Text>
-                    {mockCampagnes.map((campagne, index) => (
+                    {campagnes.map((campagne, index) => (
                         <CampagneCard 
                             key={campagne.id} 
                             campagne={campagne} 
@@ -175,6 +294,160 @@ export default function Campagne(){
                     ))}
                 </Animated.View>
             </View>
+            
+            {/* Modales CRUD */}
+            <FormModal
+                visible={showCreateModal}
+                title="Nouvelle Campagne"
+                onClose={() => { setShowCreateModal(false); resetForm(); }}
+                onSave={handleSave}
+                saveDisabled={!formData.nom || !formData.candidatNom || !formData.budget}
+            >
+                <FormField
+                    label="Nom de la campagne"
+                    value={formData.nom}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, nom: text }))}
+                    placeholder="Ex: Campagne Présidentielle 2024"
+                    required
+                    icon="megaphone"
+                />
+                <FormField
+                    label="Nom du candidat"
+                    value={formData.candidatNom}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, candidatNom: text }))}
+                    placeholder="Ex: Marie Dupont"
+                    required
+                    icon="person"
+                />
+                <SelectField
+                    label="Élection liée"
+                    value={formData.electionId}
+                    options={electionOptions}
+                    onSelect={(value) => setFormData(prev => ({ ...prev, electionId: value }))}
+                    required
+                    icon="ballot"
+                />
+                <FormField
+                    label="Budget (€)"
+                    value={formData.budget}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, budget: text }))}
+                    placeholder="Ex: 15000000"
+                    keyboardType="numeric"
+                    required
+                    icon="wallet"
+                />
+                <SelectField
+                    label="Couleur thème"
+                    value={formData.couleurTheme}
+                    options={couleurOptions}
+                    onSelect={(value) => setFormData(prev => ({ ...prev, couleurTheme: value }))}
+                    icon="color-palette"
+                />
+                <FormField
+                    label="Taille de l'équipe"
+                    value={formData.equipe}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, equipe: text }))}
+                    placeholder="Ex: 125"
+                    keyboardType="numeric"
+                    icon="people"
+                />
+                <FormField
+                    label="Date de début"
+                    value={formData.dateDebut}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateDebut: text }))}
+                    placeholder="YYYY-MM-DD"
+                    icon="calendar"
+                />
+                <FormField
+                    label="Date de fin"
+                    value={formData.dateFin}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateFin: text }))}
+                    placeholder="YYYY-MM-DD"
+                    icon="calendar"
+                />
+            </FormModal>
+
+            <FormModal
+                visible={showEditModal}
+                title="Modifier la Campagne"
+                onClose={() => { setShowEditModal(false); resetForm(); setSelectedCampagne(null); }}
+                onSave={handleSave}
+                isEdit
+                saveDisabled={!formData.nom || !formData.candidatNom || !formData.budget}
+            >
+                <FormField
+                    label="Nom de la campagne"
+                    value={formData.nom}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, nom: text }))}
+                    placeholder="Ex: Campagne Présidentielle 2024"
+                    required
+                    icon="megaphone"
+                />
+                <FormField
+                    label="Nom du candidat"
+                    value={formData.candidatNom}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, candidatNom: text }))}
+                    placeholder="Ex: Marie Dupont"
+                    required
+                    icon="person"
+                />
+                <SelectField
+                    label="Élection liée"
+                    value={formData.electionId}
+                    options={electionOptions}
+                    onSelect={(value) => setFormData(prev => ({ ...prev, electionId: value }))}
+                    required
+                    icon="ballot"
+                />
+                <FormField
+                    label="Budget (€)"
+                    value={formData.budget}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, budget: text }))}
+                    placeholder="Ex: 15000000"
+                    keyboardType="numeric"
+                    required
+                    icon="wallet"
+                />
+                <SelectField
+                    label="Couleur thème"
+                    value={formData.couleurTheme}
+                    options={couleurOptions}
+                    onSelect={(value) => setFormData(prev => ({ ...prev, couleurTheme: value }))}
+                    icon="color-palette"
+                />
+                <FormField
+                    label="Taille de l'équipe"
+                    value={formData.equipe}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, equipe: text }))}
+                    placeholder="Ex: 125"
+                    keyboardType="numeric"
+                    icon="people"
+                />
+                <FormField
+                    label="Date de début"
+                    value={formData.dateDebut}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateDebut: text }))}
+                    placeholder="YYYY-MM-DD"
+                    icon="calendar"
+                />
+                <FormField
+                    label="Date de fin"
+                    value={formData.dateFin}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateFin: text }))}
+                    placeholder="YYYY-MM-DD"
+                    icon="calendar"
+                />
+            </FormModal>
+
+            <ConfirmModal
+                visible={showDeleteModal}
+                title="Supprimer la campagne"
+                message={`Êtes-vous sûr de vouloir supprimer la campagne "${selectedCampagne?.nom}" ? Cette action est irréversible.`}
+                onConfirm={confirmDelete}
+                onCancel={() => { setShowDeleteModal(false); setSelectedCampagne(null); }}
+                confirmText="Supprimer"
+                type="danger"
+            />
         </ScrollView>
     );
 }
@@ -368,5 +641,19 @@ const styles = StyleSheet.create({
     statLabel: {
         fontSize: 12,
         color: '#666',
+    },
+    cardActionsHeader: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    editButton: {
+        padding: 6,
+        borderRadius: 6,
+        backgroundColor: '#F0F8FF',
+    },
+    deleteButtonHeader: {
+        padding: 6,
+        borderRadius: 6,
+        backgroundColor: '#FFF5F5',
     },
 });

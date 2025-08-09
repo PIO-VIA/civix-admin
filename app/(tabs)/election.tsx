@@ -1,11 +1,29 @@
-import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import React, { useEffect, useRef, useState } from 'react';
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { mockElections, mockResultats, formatNumber, formatPercentage, formatDate, getStatusColor } from '../../mock-data';
+import { FormModal } from '../../components/crud/FormModal';
+import { ConfirmModal } from '../../components/crud/ConfirmModal';
+import { FormField, SelectField } from '../../components/crud/FormField';
 
 export default function Election(){
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
+    
+    // États pour CRUD
+    const [elections, setElections] = useState(mockElections);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [selectedElection, setSelectedElection] = useState<any>(null);
+    const [formData, setFormData] = useState({
+        nom: '',
+        description: '',
+        dateDebut: '',
+        dateFin: '',
+        typeElection: '',
+        nombreElecteurs: ''
+    });
 
     useEffect(() => {
         Animated.parallel([
@@ -21,6 +39,85 @@ export default function Election(){
             }),
         ]).start();
     }, []);
+
+    const typeElectionOptions = [
+        { label: 'Présidentielle', value: 'PRESIDENTIELLE' },
+        { label: 'Municipale', value: 'MUNICIPALE' },
+        { label: 'Européenne', value: 'EUROPEENNE' },
+        { label: 'Régionale', value: 'REGIONALE' },
+        { label: 'Départementale', value: 'DEPARTEMENTALE' }
+    ];
+
+    const resetForm = () => {
+        setFormData({
+            nom: '',
+            description: '',
+            dateDebut: '',
+            dateFin: '',
+            typeElection: '',
+            nombreElecteurs: ''
+        });
+    };
+
+    const handleCreate = () => {
+        resetForm();
+        setShowCreateModal(true);
+    };
+
+    const handleEdit = (election: any) => {
+        setSelectedElection(election);
+        setFormData({
+            nom: election.nom,
+            description: election.description,
+            dateDebut: election.dateDebut.split('T')[0],
+            dateFin: election.dateFin.split('T')[0],
+            typeElection: election.typeElection,
+            nombreElecteurs: election.nombreElecteurs.toString()
+        });
+        setShowEditModal(true);
+    };
+
+    const handleDelete = (election: any) => {
+        setSelectedElection(election);
+        setShowDeleteModal(true);
+    };
+
+    const handleSave = () => {
+        if (!formData.nom || !formData.description || !formData.dateDebut || !formData.dateFin) {
+            Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+            return;
+        }
+
+        const electionData = {
+            ...formData,
+            id: selectedElection ? selectedElection.id : Date.now().toString(),
+            dateDebut: formData.dateDebut + 'T08:00:00Z',
+            dateFin: formData.dateFin + 'T20:00:00Z',
+            nombreElecteurs: parseInt(formData.nombreElecteurs) || 0,
+            statut: 'PROGRAMMEE',
+            tauxParticipation: 0,
+            resultat: null
+        };
+
+        if (selectedElection) {
+            // Modifier
+            setElections(prev => prev.map(e => e.id === selectedElection.id ? { ...selectedElection, ...electionData } : e));
+            setShowEditModal(false);
+        } else {
+            // Créer
+            setElections(prev => [...prev, electionData]);
+            setShowCreateModal(false);
+        }
+        
+        resetForm();
+        setSelectedElection(null);
+    };
+
+    const confirmDelete = () => {
+        setElections(prev => prev.filter(e => e.id !== selectedElection.id));
+        setShowDeleteModal(false);
+        setSelectedElection(null);
+    };
 
     const ElectionCard = ({ election, index }: any) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
@@ -92,10 +189,16 @@ export default function Election(){
                     </View>
                 )}
 
-                <TouchableOpacity style={styles.viewButton}>
-                    <Text style={styles.viewButtonText}>Voir détails</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-                </TouchableOpacity>
+                <View style={styles.cardActions}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(election)}>
+                        <Ionicons name="pencil" size={16} color="#007AFF" />
+                        <Text style={styles.actionText}>Modifier</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDelete(election)}>
+                        <Ionicons name="trash" size={16} color="#DC3545" />
+                        <Text style={[styles.actionText, styles.deleteText]}>Supprimer</Text>
+                    </TouchableOpacity>
+                </View>
             </Animated.View>
         );
     };
@@ -105,7 +208,7 @@ export default function Election(){
             <View style={styles.header}>
                 <Ionicons name="ballot" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Élections</Text>
-                <TouchableOpacity style={styles.addButton}>
+                <TouchableOpacity style={styles.addButton} onPress={handleCreate}>
                     <Ionicons name="add" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
@@ -116,18 +219,18 @@ export default function Election(){
                     { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
                 ]}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statNumber}>{mockElections.length}</Text>
+                        <Text style={styles.statNumber}>{elections.length}</Text>
                         <Text style={styles.statLabel}>Total</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statNumber, { color: '#28A745' }]}>
-                            {mockElections.filter(e => e.statut === 'EN_COURS').length}
+                            {elections.filter(e => e.statut === 'EN_COURS').length}
                         </Text>
                         <Text style={styles.statLabel}>En cours</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statNumber, { color: '#FFC107' }]}>
-                            {mockElections.filter(e => e.statut === 'PROGRAMMEE').length}
+                            {elections.filter(e => e.statut === 'PROGRAMMEE').length}
                         </Text>
                         <Text style={styles.statLabel}>Programmées</Text>
                     </View>
@@ -138,7 +241,7 @@ export default function Election(){
                     { opacity: fadeAnim }
                 ]}>
                     <Text style={styles.sectionTitle}>Élections Récentes</Text>
-                    {mockElections.map((election, index) => (
+                    {elections.map((election, index) => (
                         <ElectionCard 
                             key={election.id} 
                             election={election} 
@@ -147,6 +250,136 @@ export default function Election(){
                     ))}
                 </Animated.View>
             </View>
+            
+            {/* Modales CRUD */}
+            <FormModal
+                visible={showCreateModal}
+                title="Nouvelle Élection"
+                onClose={() => { setShowCreateModal(false); resetForm(); }}
+                onSave={handleSave}
+                saveDisabled={!formData.nom || !formData.description}
+            >
+                <FormField
+                    label="Nom de l'élection"
+                    value={formData.nom}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, nom: text }))}
+                    placeholder="Ex: Élection Présidentielle 2024"
+                    required
+                    icon="ballot"
+                />
+                <FormField
+                    label="Description"
+                    value={formData.description}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                    placeholder="Description de l'élection"
+                    multiline
+                    numberOfLines={3}
+                    required
+                    icon="document-text"
+                />
+                <SelectField
+                    label="Type d'élection"
+                    value={formData.typeElection}
+                    options={typeElectionOptions}
+                    onSelect={(value) => setFormData(prev => ({ ...prev, typeElection: value }))}
+                    required
+                    icon="flag"
+                />
+                <FormField
+                    label="Date de début"
+                    value={formData.dateDebut}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateDebut: text }))}
+                    placeholder="YYYY-MM-DD"
+                    required
+                    icon="calendar"
+                />
+                <FormField
+                    label="Date de fin"
+                    value={formData.dateFin}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateFin: text }))}
+                    placeholder="YYYY-MM-DD"
+                    required
+                    icon="calendar"
+                />
+                <FormField
+                    label="Nombre d'électeurs estimé"
+                    value={formData.nombreElecteurs}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, nombreElecteurs: text }))}
+                    placeholder="Ex: 47500000"
+                    keyboardType="numeric"
+                    icon="people"
+                />
+            </FormModal>
+
+            <FormModal
+                visible={showEditModal}
+                title="Modifier l'Élection"
+                onClose={() => { setShowEditModal(false); resetForm(); setSelectedElection(null); }}
+                onSave={handleSave}
+                isEdit
+                saveDisabled={!formData.nom || !formData.description}
+            >
+                <FormField
+                    label="Nom de l'élection"
+                    value={formData.nom}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, nom: text }))}
+                    placeholder="Ex: Élection Présidentielle 2024"
+                    required
+                    icon="ballot"
+                />
+                <FormField
+                    label="Description"
+                    value={formData.description}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                    placeholder="Description de l'élection"
+                    multiline
+                    numberOfLines={3}
+                    required
+                    icon="document-text"
+                />
+                <SelectField
+                    label="Type d'élection"
+                    value={formData.typeElection}
+                    options={typeElectionOptions}
+                    onSelect={(value) => setFormData(prev => ({ ...prev, typeElection: value }))}
+                    required
+                    icon="flag"
+                />
+                <FormField
+                    label="Date de début"
+                    value={formData.dateDebut}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateDebut: text }))}
+                    placeholder="YYYY-MM-DD"
+                    required
+                    icon="calendar"
+                />
+                <FormField
+                    label="Date de fin"
+                    value={formData.dateFin}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateFin: text }))}
+                    placeholder="YYYY-MM-DD"
+                    required
+                    icon="calendar"
+                />
+                <FormField
+                    label="Nombre d'électeurs estimé"
+                    value={formData.nombreElecteurs}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, nombreElecteurs: text }))}
+                    placeholder="Ex: 47500000"
+                    keyboardType="numeric"
+                    icon="people"
+                />
+            </FormModal>
+
+            <ConfirmModal
+                visible={showDeleteModal}
+                title="Supprimer l'élection"
+                message={`Êtes-vous sûr de vouloir supprimer l'élection "${selectedElection?.nom}" ? Cette action est irréversible.`}
+                onConfirm={confirmDelete}
+                onCancel={() => { setShowDeleteModal(false); setSelectedElection(null); }}
+                confirmText="Supprimer"
+                type="danger"
+            />
         </ScrollView>
     );
 }
@@ -299,16 +532,30 @@ const styles = StyleSheet.create({
         backgroundColor: '#007AFF',
         borderRadius: 3,
     },
-    viewButton: {
+    cardActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionButton: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        backgroundColor: '#F0F8FF',
     },
-    viewButtonText: {
-        fontSize: 16,
+    deleteButton: {
+        backgroundColor: '#FFF5F5',
+    },
+    actionText: {
+        fontSize: 14,
         color: '#007AFF',
         fontWeight: '500',
-        marginRight: 4,
+        marginLeft: 4,
+    },
+    deleteText: {
+        color: '#DC3545',
     },
 });
