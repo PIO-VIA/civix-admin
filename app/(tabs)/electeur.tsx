@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, TextInput } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { mockElecteurs, mockStatistiquesElecteurs, formatNumber, formatPercentage, formatDate, getStatusColor } from '../../mock-data';
@@ -181,7 +181,7 @@ export default function Electeur(){
                     styles.overviewSection,
                     { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
                 ]}>
-                    <Text style={styles.sectionTitle}>Vue d'ensemble</Text>
+                    <Text style={styles.sectionTitle}>{"Vue d'ensemble"}</Text>
                     <View style={styles.overviewCards}>
                         <View style={styles.overviewCard}>
                             <Text style={styles.overviewNumber}>

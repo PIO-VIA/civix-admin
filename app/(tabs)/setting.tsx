@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from "expo-router";
 
 export default function Setting() {
+  const router = useRouter();
   const settingsOptions = [
     {
       title: 'Profil utilisateur',
@@ -14,16 +16,7 @@ export default function Setting() {
       icon: 'notifications-outline',
       onPress: () => console.log('Notifications'),
     },
-    {
-      title: 'Sécurité',
-      icon: 'shield-checkmark-outline',
-      onPress: () => console.log('Sécurité'),
-    },
-    {
-      title: 'Thème',
-      icon: 'color-palette-outline',
-      onPress: () => console.log('Thème'),
-    },
+    
     {
       title: 'à propos',
       icon: 'information-circle-outline',
@@ -32,7 +25,7 @@ export default function Setting() {
     {
       title: 'Déconnexion',
       icon: 'log-out-outline',
-      onPress: () => console.log('Déconnexion'),
+      onPress: () => router.push("/login"),
       danger: true,
     },
   ];
