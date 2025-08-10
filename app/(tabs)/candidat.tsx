@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Image } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { mockCandidats, mockStatistiquesCandidat, formatNumber, formatPercentage, getStatusColor } from '../../mock-data';
 
 export default function Candidat(){
@@ -45,13 +46,16 @@ export default function Candidat(){
         }, []);
 
         return (
-            <Animated.View style={[
-                styles.candidatCard,
-                { 
-                    opacity: cardAnim,
-                    transform: [{ translateY: slideAnim }]
-                }
-            ]}>
+            <TouchableOpacity 
+                onPress={() => router.push(`/candidat-detail?id=${candidat.id}`)}
+            >
+                <Animated.View style={[
+                    styles.candidatCard,
+                    { 
+                        opacity: cardAnim,
+                        transform: [{ translateY: slideAnim }]
+                    }
+                ]}>
                 <View style={styles.candidatHeader}>
                     <View style={styles.candidatPhoto}>
                         <Ionicons name="person" size={32} color="#007AFF" />
@@ -138,6 +142,7 @@ export default function Candidat(){
                     <Ionicons name="chevron-forward" size={16} color="#007AFF" />
                 </TouchableOpacity>
             </Animated.View>
+            </TouchableOpacity>
         );
     };
 
@@ -146,7 +151,10 @@ export default function Candidat(){
             <View style={styles.header}>
                 <Ionicons name="people" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Candidats</Text>
-                <TouchableOpacity style={styles.addButton}>
+                <TouchableOpacity 
+                    style={styles.addButton}
+                    onPress={() => router.push('/candidat-form')}
+                >
                     <Ionicons name="person-add" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, TextInput } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { mockElecteurs, mockStatistiquesElecteurs, formatNumber, formatPercentage, formatDate, getStatusColor } from '../../mock-data';
 
 export default function Electeur(){
@@ -39,13 +40,16 @@ export default function Electeur(){
         };
 
         return (
-            <Animated.View style={[
-                styles.electeurCard,
-                { 
-                    opacity: cardAnim,
-                    transform: [{ translateX: slideAnim }]
-                }
-            ]}>
+            <TouchableOpacity 
+                onPress={() => router.push(`/electeur-detail?id=${electeur.id}`)}
+            >
+                <Animated.View style={[
+                    styles.electeurCard,
+                    { 
+                        opacity: cardAnim,
+                        transform: [{ translateX: slideAnim }]
+                    }
+                ]}>
                 <View style={styles.electeurHeader}>
                     <View style={[
                         styles.electeurAvatar,
@@ -115,6 +119,7 @@ export default function Electeur(){
                     </View>
                 </View>
             </Animated.View>
+            </TouchableOpacity>
         );
     };
 
@@ -158,9 +163,17 @@ export default function Electeur(){
             <View style={styles.header}>
                 <Ionicons name="people" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Électeurs</Text>
-                <TouchableOpacity style={styles.searchButton}>
-                    <Ionicons name="search" size={24} color="#007AFF" />
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity 
+                        style={styles.addButton} 
+                        onPress={() => router.push('/electeur-form')}
+                    >
+                        <Ionicons name="add" size={24} color="#007AFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.searchButton}>
+                        <Ionicons name="search" size={24} color="#007AFF" />
+                    </TouchableOpacity>
+                </View>
             </View>
             
             <View style={styles.content}>
@@ -258,6 +271,14 @@ const styles = StyleSheet.create({
         color: '#000',
         marginLeft: 12,
         flex: 1,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    addButton: {
+        padding: 8,
     },
     searchButton: {
         padding: 8,

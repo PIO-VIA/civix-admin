@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { mockElections, mockResultats, formatNumber, formatPercentage, formatDate, getStatusColor } from '../../mock-data';
 import { FormModal } from '../../components/crud/FormModal';
 import { ConfirmModal } from '../../components/crud/ConfirmModal';
@@ -60,8 +61,7 @@ export default function Election(){
     };
 
     const handleCreate = () => {
-        resetForm();
-        setShowCreateModal(true);
+        router.push('/election-form');
     };
 
     const handleEdit = (election: any) => {
@@ -132,13 +132,16 @@ export default function Election(){
         }, []);
 
         return (
-            <Animated.View style={[
-                styles.electionCard,
-                { 
-                    opacity: cardAnim,
-                    transform: [{ translateY: slideAnim }]
-                }
-            ]}>
+            <TouchableOpacity 
+                onPress={() => router.push(`/election-detail?id=${election.id}`)}
+            >
+                <Animated.View style={[
+                    styles.electionCard,
+                    { 
+                        opacity: cardAnim,
+                        transform: [{ translateY: slideAnim }]
+                    }
+                ]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.electionInfo}>
                         <Text style={styles.electionTitle}>{election.nom}</Text>
@@ -200,6 +203,7 @@ export default function Election(){
                     </TouchableOpacity>
                 </View>
             </Animated.View>
+            </TouchableOpacity>
         );
     };
 

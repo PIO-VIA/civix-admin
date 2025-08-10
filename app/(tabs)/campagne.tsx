@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { mockCampagnes, mockStatistiquesCampagnes, formatNumber, formatCurrency, formatPercentage } from '../../mock-data';
 import { FormModal } from '../../components/crud/FormModal';
 import { ConfirmModal } from '../../components/crud/ConfirmModal';
@@ -70,8 +71,7 @@ export default function Campagne(){
     };
 
     const handleCreate = () => {
-        resetForm();
-        setShowCreateModal(true);
+        router.push('/campagne-form');
     };
 
     const handleEdit = (campagne: any) => {
@@ -159,14 +159,17 @@ export default function Campagne(){
         const budgetPourcentage = (campagne.budgetUtilise / campagne.budget) * 100;
 
         return (
-            <Animated.View style={[
-                styles.campagneCard,
-                { 
-                    opacity: cardAnim,
-                    transform: [{ translateY: slideAnim }],
-                    borderLeftColor: campagne.couleurTheme
-                }
-            ]}>
+            <TouchableOpacity 
+                onPress={() => router.push(`/campagne-detail?id=${campagne.id}`)}
+            >
+                <Animated.View style={[
+                    styles.campagneCard,
+                    { 
+                        opacity: cardAnim,
+                        transform: [{ translateY: slideAnim }],
+                        borderLeftColor: campagne.couleurTheme
+                    }
+                ]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.campagneInfo}>
                         <Text style={styles.campagneTitle}>{campagne.nom}</Text>
@@ -239,6 +242,7 @@ export default function Campagne(){
                     </View>
                 </View>
             </Animated.View>
+            </TouchableOpacity>
         );
     };
 
