@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet, TouchableOpacity, TextInput, ImageBackground } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, TextInput, ImageBackground, Alert } from "react-native";
 import { useState } from "react";
 import { Router, useRouter } from "expo-router";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -9,15 +9,13 @@ import { useEffect } from "react";
 
 export default function Login() {
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [secure, setSecure] = useState(true);
     const { login, isAuthenticated, isLoading: authLoading } = useAuth();
     const [error, setError] = useState<string>("");
 
     const [formData, setFormData] = useState<LoginRequest>({
-    email: "",
-    motDePasse: "",
+        email: "",
+        motDePasse: "",
     });
 
     // Rediriger si déjà connecté
@@ -28,27 +26,40 @@ export default function Login() {
     }, [isAuthenticated, authLoading, router]);
 
     const handleLogin = async () => {
+        if (!formData.email || !formData.motDePasse) {
+            Alert.alert("Champs requis", "Veuillez remplir l'email et le mot de passe.");
+            return;
+        }
+
         try {
             const response = await login(formData);
             
-            // Gestion de la première connexion
             if (response.premierConnexion) {
-              // TODO: Rediriger vers une page de changement de mot de passe
               console.log("Première connexion détectée");
+              // Optionnel : Naviguer vers un écran de changement de mot de passe
             }
             
-            router.replace('/(tabs)/home');            
+            router.replace('/(tabs)/home');
+
           } catch (error) {
             console.error("Erreur de connexion:", error);
-            setError("Identifiants invalides ou erreur de connexion");
+            setError("Identifiants invalides. Veuillez réessayer.");
+            Alert.alert("Échec de la connexion", "Identifiants invalides. Veuillez réessayer.");
           }
+    };
+
+    const handleInputChange = (name: keyof LoginRequest, value: string) => {
+        setFormData(prevState => ({
+            ...prevState,
+            [name]: value
+        }));
     };
 
     return (
         <ImageBackground source={require("../assets/images/me.jpeg")} style={styles.background} blurRadius={3}>
             <View style={styles.overlay} />
 
-            <View style={styles.container}></View>
+            <View style={styles.container}>
                 <ThemeText variant="titrelogin" style={styles.title}>
                     <Icon name="lock-closed-outline" size={24} color="#007BFF" /> Connexion Admin
                 </ThemeText>
@@ -61,8 +72,8 @@ export default function Login() {
                     <TextInput
                         style={styles.input}
                         placeholder="Adresse email"
-                        value={email}
-                        onChangeText={setEmail}
+                        value={formData.email}
+                        onChangeText={(text) => handleInputChange('email', text)}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         placeholderTextColor="#888"
@@ -74,8 +85,8 @@ export default function Login() {
                     <TextInput
                         style={styles.input}
                         placeholder="Mot de passe"
-                        value={password}
-                        onChangeText={setPassword}
+                        value={formData.motDePasse}
+                        onChangeText={(text) => handleInputChange('motDePasse', text)}
                         secureTextEntry={secure}
                         placeholderTextColor="#888"
                     />
@@ -84,9 +95,12 @@ export default function Login() {
                     </TouchableOpacity>
                 </View>
 
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
                 <TouchableOpacity style={styles.button} onPress={handleLogin}>
                     <Text style={styles.buttonText}>Se connecter</Text>
                 </TouchableOpacity>
+            </View>
         </ImageBackground>
     );
 }
@@ -159,6 +173,11 @@ const styles = StyleSheet.create({
         textAlign: "center",
         lineHeight: 24,
       },
+      errorText: {
+        color: 'red',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
       
 });
 
