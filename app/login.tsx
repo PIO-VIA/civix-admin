@@ -1,26 +1,54 @@
 import { Text, View, StyleSheet, TouchableOpacity, TextInput, ImageBackground } from "react-native";
 import { useState } from "react";
-import { useRouter } from "expo-router";
+import { Router, useRouter } from "expo-router";
 import Icon from "react-native-vector-icons/Ionicons";
 import { ThemeText } from '@/components/ThemeText';
+import { useAuth } from "@/context/authcontext";
+import { LoginRequest } from "@/lib/models/LoginRequest";
+import { useEffect } from "react";
 
 export default function Login() {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [secure, setSecure] = useState(true);
+    const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+    const [error, setError] = useState<string>("");
 
-    const handleLogin = () => {
-        console.log('Email:', email);
-        console.log('Mot de passe:', password);
-        router.replace('/(tabs)/home');
+    const [formData, setFormData] = useState<LoginRequest>({
+    email: "",
+    motDePasse: "",
+    });
+
+    // Rediriger si déjà connecté
+    useEffect(() => {
+        if (isAuthenticated && !authLoading) {
+            router.replace('/(tabs)/home');
+        }
+    }, [isAuthenticated, authLoading, router]);
+
+    const handleLogin = async () => {
+        try {
+            const response = await login(formData);
+            
+            // Gestion de la première connexion
+            if (response.premierConnexion) {
+              // TODO: Rediriger vers une page de changement de mot de passe
+              console.log("Première connexion détectée");
+            }
+            
+            router.replace('/(tabs)/home');            
+          } catch (error) {
+            console.error("Erreur de connexion:", error);
+            setError("Identifiants invalides ou erreur de connexion");
+          }
     };
 
     return (
         <ImageBackground source={require("../assets/images/me.jpeg")} style={styles.background} blurRadius={3}>
             <View style={styles.overlay} />
 
-            <View style={styles.container}>
+            <View style={styles.container}></View>
                 <ThemeText variant="titrelogin" style={styles.title}>
                     <Icon name="lock-closed-outline" size={24} color="#007BFF" /> Connexion Admin
                 </ThemeText>
@@ -59,7 +87,6 @@ export default function Login() {
                 <TouchableOpacity style={styles.button} onPress={handleLogin}>
                     <Text style={styles.buttonText}>Se connecter</Text>
                 </TouchableOpacity>
-            </View>
         </ImageBackground>
     );
 }
@@ -134,3 +161,4 @@ const styles = StyleSheet.create({
       },
       
 });
+
