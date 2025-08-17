@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Image } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockCandidats } from '@/mock-data/candidats';
 import { CandidatDTO } from '@/lib/models/CandidatDTO';
+import { useCandidats } from '@/hooks/useCandidats';
 
 export default function Candidat() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
+    const { candidats, statistiques, loading, error, refreshCandidats } = useCandidats();
 
     useEffect(() => {
         Animated.parallel([
@@ -23,6 +24,12 @@ export default function Candidat() {
             }),
         ]).start();
     }, [fadeAnim, slideAnim]);
+
+    useEffect(() => {
+        if (error) {
+            Alert.alert("Erreur", error);
+        }
+    }, [error]);
 
     const CandidatCard = ({ candidat, index }: { candidat: CandidatDTO, index: number }) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
@@ -79,19 +86,39 @@ export default function Candidat() {
                     { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
                 ]}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statNumber}>{mockCandidats.length}</Text>
+                        <Text style={styles.statNumber}>
+                            {loading ? '...' : candidats.length}
+                        </Text>
                         <Text style={styles.statLabel}>Candidats Inscrits</Text>
                     </View>
                 </Animated.View>
 
                 <Animated.View style={styles.candidatsSection}>
-                    {mockCandidats.map((candidat, index) => (
-                        <CandidatCard
-                            key={candidat.externalIdCandidat}
-                            candidat={candidat}
-                            index={index}
-                        />
-                    ))}
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#007AFF" />
+                            <Text style={styles.loadingText}>Chargement des candidats...</Text>
+                        </View>
+                    ) : candidats.length > 0 ? (
+                        candidats.map((candidat, index) => (
+                            <CandidatCard
+                                key={candidat.externalIdCandidat}
+                                candidat={candidat}
+                                index={index}
+                            />
+                        ))
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="people-outline" size={64} color="#CCC" />
+                            <Text style={styles.emptyText}>Aucun candidat disponible</Text>
+                            <TouchableOpacity 
+                                style={styles.emptyButton}
+                                onPress={() => router.push('/candidat-form')}
+                            >
+                                <Text style={styles.emptyButtonText}>Créer un candidat</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </Animated.View>
             </View>
         </ScrollView>
@@ -190,5 +217,41 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#333',
         lineHeight: 20,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 12,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        marginVertical: 20,
+    },
+    emptyText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 16,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    emptyButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    emptyButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

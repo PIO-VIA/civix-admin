@@ -1,28 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockCandidats } from '@/mock-data/candidats';
-import { CandidatDTO } from '@/lib/models/CandidatDTO';
+import { CandidatDetailDTO } from '@/lib/models/CandidatDetailDTO';
+import { useCandidats } from '@/hooks/useCandidats';
 
 export default function CandidatDetail() {
     const { id } = useLocalSearchParams();
-    const [candidat, setCandidat] = useState<CandidatDTO | null>(null);
+    const [candidat, setCandidat] = useState<CandidatDetailDTO | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { obtenirCandidat, supprimerCandidat } = useCandidats();
 
     useEffect(() => {
-        const foundCandidat = mockCandidats.find(c => c.externalIdCandidat === id);
-        if (foundCandidat) {
-            setCandidat(foundCandidat);
-        } else {
-            Alert.alert("Erreur", "Candidat non trouvé.", [{ text: "OK", onPress: () => router.back() }]);
-        }
-    }, [id]);
+        const loadCandidat = async () => {
+            if (!id || typeof id !== 'string') {
+                Alert.alert("Erreur", "ID de candidat invalide.", [{ text: "OK", onPress: () => router.back() }]);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const candidatData = await obtenirCandidat(id);
+                if (candidatData) {
+                    setCandidat(candidatData);
+                } else {
+                    Alert.alert("Erreur", "Candidat non trouvé.", [{ text: "OK", onPress: () => router.back() }]);
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement du candidat:', error);
+                Alert.alert("Erreur", "Impossible de charger le candidat.", [{ text: "OK", onPress: () => router.back() }]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadCandidat();
+    }, [id, obtenirCandidat]);
 
     const handleEdit = () => {
         router.push(`/candidat-form?id=${candidat?.externalIdCandidat}`);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
+        if (!candidat?.externalIdCandidat) return;
+
         Alert.alert(
             "Supprimer le candidat",
             `Êtes-vous sûr de vouloir supprimer "${candidat?.username}" ? Cette action est irréversible.`,
@@ -31,20 +52,43 @@ export default function CandidatDetail() {
                 {
                     text: 'Supprimer',
                     style: 'destructive',
-                    onPress: () => {
-                        Alert.alert('Succès', 'Candidat supprimé (simulation)', [
-                            { text: 'OK', onPress: () => router.back() }
-                        ]);
+                    onPress: async () => {
+                        try {
+                            const success = await supprimerCandidat(candidat.externalIdCandidat);
+                            if (success) {
+                                Alert.alert('Succès', 'Candidat supprimé avec succès', [
+                                    { text: 'OK', onPress: () => router.back() }
+                                ]);
+                            } else {
+                                Alert.alert('Erreur', 'Impossible de supprimer le candidat');
+                            }
+                        } catch (error) {
+                            console.error('Erreur lors de la suppression:', error);
+                            Alert.alert('Erreur', 'Une erreur est survenue lors de la suppression');
+                        }
                     }
                 }
             ]
         );
     };
 
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centered]}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement du candidat...</Text>
+            </View>
+        );
+    }
+
     if (!candidat) {
         return (
             <View style={[styles.container, styles.centered]}>
-                <Text>Chargement...</Text>
+                <Ionicons name="alert-circle-outline" size={64} color="#CCC" />
+                <Text style={styles.errorText}>Candidat non trouvé</Text>
+                <TouchableOpacity style={styles.backToListButton} onPress={() => router.back()}>
+                    <Text style={styles.backToListText}>Retour à la liste</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -142,4 +186,27 @@ const styles = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     },
     deleteButtonText: { fontSize: 16, color: '#DC3545', fontWeight: '600', marginLeft: 8 },
+    loadingText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 12,
+    },
+    errorText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 16,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    backToListButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    backToListText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { FormField } from '@/components/crud/FormField';
-import { mockCandidats } from '@/mock-data/candidats';
 import { CandidatDTO } from '@/lib/models/CandidatDTO';
+import { CreateCandidatRequest } from '@/lib/models/CreateCandidatRequest';
+import { UpdateCandidatRequest } from '@/lib/models/UpdateCandidatRequest';
+import { useCandidats } from '@/hooks/useCandidats';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function CandidatForm() {
@@ -18,17 +20,32 @@ export default function CandidatForm() {
         photo: '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [loading, setLoading] = useState(false);
+
+    const { obtenirCandidat, creerCandidat, modifierCandidat } = useCandidats();
 
     useEffect(() => {
-        if (isEditMode) {
-            const candidatToEdit = mockCandidats.find(c => c.externalIdCandidat === id);
-            if (candidatToEdit) {
-                setFormData(candidatToEdit);
-            } else {
-                Alert.alert('Erreur', 'Candidat non trouvé.', [{ text: 'OK', onPress: () => router.back() }]);
-            }
+        if (isEditMode && id && typeof id === 'string') {
+            const loadCandidat = async () => {
+                try {
+                    setLoading(true);
+                    const candidatToEdit = await obtenirCandidat(id);
+                    if (candidatToEdit) {
+                        setFormData(candidatToEdit);
+                    } else {
+                        Alert.alert('Erreur', 'Candidat non trouvé.', [{ text: 'OK', onPress: () => router.back() }]);
+                    }
+                } catch (error) {
+                    console.error('Erreur lors du chargement du candidat:', error);
+                    Alert.alert('Erreur', 'Impossible de charger le candidat.', [{ text: 'OK', onPress: () => router.back() }]);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            loadCandidat();
         }
-    }, [id, isEditMode]);
+    }, [id, isEditMode, obtenirCandidat]);
 
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
@@ -54,29 +71,60 @@ export default function CandidatForm() {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validateForm()) {
             Alert.alert('Erreur', 'Veuillez corriger les erreurs dans le formulaire');
             return;
         }
 
-        const finalData: CandidatDTO = {
-            ...formData,
-            externalIdCandidat: isEditMode ? (id as string) : Date.now().toString(),
-            username: formData.username || '',
-            email: formData.email || '',
-            description: formData.description || '',
-            photo: formData.photo || 'https://via.placeholder.com/100x100',
-            campagnes: isEditMode ? formData.campagnes : [],
-        };
+        try {
+            setLoading(true);
 
-        console.log('Submitting data:', finalData);
+            if (isEditMode && id && typeof id === 'string') {
+                // Mode modification
+                const updateData: UpdateCandidatRequest = {
+                    username: formData.username || '',
+                    email: formData.email || '',
+                    description: formData.description || '',
+                    photo: formData.photo || 'https://via.placeholder.com/100x100',
+                };
 
-        Alert.alert(
-            'Succès',
-            `Candidat ${isEditMode ? 'modifié' : 'créé'} avec succès!`,
-            [{ text: 'OK', onPress: () => router.push('/(tabs)/candidat') }]
-        );
+                const result = await modifierCandidat(id, updateData);
+                if (result) {
+                    Alert.alert(
+                        'Succès',
+                        'Candidat modifié avec succès!',
+                        [{ text: 'OK', onPress: () => router.push('/(tabs)/candidat') }]
+                    );
+                } else {
+                    Alert.alert('Erreur', 'Impossible de modifier le candidat');
+                }
+            } else {
+                // Mode création
+                const createData: CreateCandidatRequest = {
+                    username: formData.username || '',
+                    email: formData.email || '',
+                    description: formData.description || '',
+                    photo: formData.photo || 'https://via.placeholder.com/100x100',
+                };
+
+                const result = await creerCandidat(createData);
+                if (result) {
+                    Alert.alert(
+                        'Succès',
+                        'Candidat créé avec succès!',
+                        [{ text: 'OK', onPress: () => router.push('/(tabs)/candidat') }]
+                    );
+                } else {
+                    Alert.alert('Erreur', 'Impossible de créer le candidat');
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors de la soumission:', error);
+            Alert.alert('Erreur', 'Une erreur est survenue lors de la sauvegarde');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const updateFormData = (field: keyof CandidatDTO, value: any) => {
