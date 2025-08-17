@@ -61,14 +61,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const initializeAuth = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('token');
+      console.log('🔐 Token récupéré du stockage:', storedToken ? '✅ Présent' : '❌ Absent');
       
       if (storedToken) {
+        console.log('🔄 Configuration du token dans le contexte...');
         setToken(storedToken);
         setAuthToken(storedToken);
         await verifyAndLoadSession(storedToken);
       }
     } catch (error) {
-      console.error('Erreur lors de l\'initialisation de l\'auth:', error);
+      console.error('❌ Erreur lors de l\'initialisation de l\'auth:', error);
       await clearAuth();
     } finally {
       setIsLoading(false);
@@ -113,8 +115,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
 
       if (response.token) {
+        console.log('💾 Sauvegarde du token après login...');
         await AsyncStorage.setItem('token', response.token);
         
+        console.log('🔄 Configuration du token dans le contexte après login...');
         setToken(response.token);
         setAuthToken(response.token);
         const userData: AuthUser = {

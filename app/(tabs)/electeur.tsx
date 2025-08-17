@@ -10,6 +10,15 @@ export default function Electeur() {
     const slideAnim = useRef(new Animated.Value(50)).current;
     const { electeurs, loading, error, refreshElecteurs } = useElecteurs();
 
+    // Debug: Log des données reçues
+    useEffect(() => {
+        console.log('📊 Page Electeur - État actuel:');
+        console.log('  - Loading:', loading);
+        console.log('  - Error:', error);
+        console.log('  - Électeurs reçus:', electeurs?.length || 0);
+        console.log('  - Électeurs data:', electeurs);
+    }, [electeurs, loading, error]);
+
     useEffect(() => {
         Animated.parallel([
             Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
