@@ -2,28 +2,53 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockElections, mockResultats, formatNumber, formatPercentage, formatDate, getStatusColor } from '../../mock-data';
-import { FormModal } from '../../components/crud/FormModal';
-import { ConfirmModal } from '../../components/crud/ConfirmModal';
-import { FormField, SelectField } from '../../components/crud/FormField';
+import { mockElections } from '@/mock-data/elections';
+import { FormModal } from '@/components/crud/FormModal';
+import { ConfirmModal } from '@/components/crud/ConfirmModal';
+import { FormField } from '@/components/crud/FormField';
+import { ElectionDTO } from '@/lib/models/ElectionDTO';
 
-export default function Election(){
+// Helper functions
+const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+};
+
+const getStatusColor = (status: ElectionDTO.statut | undefined) => {
+    switch (status) {
+        case ElectionDTO.statut.EN_COURS:
+            return '#28A745'; // Green
+        case ElectionDTO.statut.PLANIFIEE:
+            return '#FFC107'; // Yellow
+        case ElectionDTO.statut.TERMINEE:
+            return '#6c757d'; // Gray
+        case ElectionDTO.statut.ANNULEE:
+            return '#DC3545'; // Red
+        default:
+            return '#007AFF'; // Blue
+    }
+};
+
+const formatNumber = (num: number | undefined) => {
+    if (num === undefined) return '0';
+    return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1 ');
+};
+
+type ModalType = 'create' | 'edit' | 'delete' | null;
+
+export default function Election() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
-    
-    // États pour CRUD
-    const [elections, setElections] = useState(mockElections);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [selectedElection, setSelectedElection] = useState<any>(null);
+
+    const [elections, setElections] = useState<ElectionDTO[]>(mockElections);
+    const [modalType, setModalType] = useState<ModalType>(null);
+    const [selectedElection, setSelectedElection] = useState<ElectionDTO | null>(null);
     const [formData, setFormData] = useState({
-        nom: '',
+        titre: '',
         description: '',
         dateDebut: '',
         dateFin: '',
-        typeElection: '',
-        nombreElecteurs: ''
     });
 
     useEffect(() => {
@@ -39,89 +64,78 @@ export default function Election(){
                 useNativeDriver: true,
             }),
         ]).start();
-    }, []);
-
-    const typeElectionOptions = [
-        { label: 'Présidentielle', value: 'PRESIDENTIELLE' },
-        { label: 'Municipale', value: 'MUNICIPALE' },
-        { label: 'Européenne', value: 'EUROPEENNE' },
-        { label: 'Régionale', value: 'REGIONALE' },
-        { label: 'Départementale', value: 'DEPARTEMENTALE' }
-    ];
+    }, [fadeAnim, slideAnim]);
 
     const resetForm = () => {
         setFormData({
-            nom: '',
+            titre: '',
             description: '',
             dateDebut: '',
             dateFin: '',
-            typeElection: '',
-            nombreElecteurs: ''
         });
+        setSelectedElection(null);
     };
 
-    const handleCreate = () => {
-        router.push('/election-form');
+    const openModal = (type: ModalType, election: ElectionDTO | null = null) => {
+        setModalType(type);
+        if (election) {
+            setSelectedElection(election);
+            setFormData({
+                titre: election.titre || '',
+                description: election.description || '',
+                dateDebut: election.dateDebut ? election.dateDebut.split('T')[0] : '',
+                dateFin: election.dateFin ? election.dateFin.split('T')[0] : '',
+            });
+        } else {
+            resetForm();
+        }
     };
 
-    const handleEdit = (election: any) => {
-        setSelectedElection(election);
-        setFormData({
-            nom: election.nom,
-            description: election.description,
-            dateDebut: election.dateDebut.split('T')[0],
-            dateFin: election.dateFin.split('T')[0],
-            typeElection: election.typeElection,
-            nombreElecteurs: election.nombreElecteurs.toString()
-        });
-        setShowEditModal(true);
-    };
-
-    const handleDelete = (election: any) => {
-        setSelectedElection(election);
-        setShowDeleteModal(true);
+    const closeModal = () => {
+        setModalType(null);
+        resetForm();
     };
 
     const handleSave = () => {
-        if (!formData.nom || !formData.description || !formData.dateDebut || !formData.dateFin) {
+        if (!formData.titre || !formData.description || !formData.dateDebut || !formData.dateFin) {
             Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
             return;
         }
 
-        const electionData = {
+        const electionData: Partial<ElectionDTO> = {
             ...formData,
-            id: selectedElection ? selectedElection.id : Date.now().toString(),
             dateDebut: formData.dateDebut + 'T08:00:00Z',
             dateFin: formData.dateFin + 'T20:00:00Z',
-            nombreElecteurs: parseInt(formData.nombreElecteurs) || 0,
-            statut: 'PROGRAMMEE',
-            tauxParticipation: 0,
-            resultat: null
+            dateModification: new Date().toISOString(),
         };
 
-        if (selectedElection) {
-            // Modifier
-            setElections(prev => prev.map(e => e.id === selectedElection.id ? { ...selectedElection, ...electionData } : e));
-            setShowEditModal(false);
+        if (modalType === 'edit' && selectedElection) {
+            setElections(prev => prev.map(e =>
+                e.externalIdElection === selectedElection.externalIdElection ? { ...e, ...electionData } : e
+            ));
         } else {
-            // Créer
-            setElections(prev => [...prev, electionData]);
-            setShowCreateModal(false);
+            const newElection: ElectionDTO = {
+                ...electionData,
+                externalIdElection: Date.now().toString(),
+                statut: ElectionDTO.statut.PLANIFIEE,
+                dateCreation: new Date().toISOString(),
+            };
+            setElections(prev => [...prev, newElection]);
         }
-        
-        resetForm();
-        setSelectedElection(null);
+
+        closeModal();
     };
 
     const confirmDelete = () => {
-        setElections(prev => prev.filter(e => e.id !== selectedElection.id));
-        setShowDeleteModal(false);
-        setSelectedElection(null);
+        if (selectedElection) {
+            setElections(prev => prev.filter(e => e.externalIdElection !== selectedElection.externalIdElection));
+            closeModal();
+        }
     };
 
-    const ElectionCard = ({ election, index }: any) => {
+    const ElectionCard = ({ election, index }: { election: ElectionDTO, index: number }) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
-        
+
         useEffect(() => {
             Animated.timing(cardAnim, {
                 toValue: 1,
@@ -129,94 +143,74 @@ export default function Election(){
                 delay: index * 150,
                 useNativeDriver: true,
             }).start();
-        }, []);
+        }, [cardAnim, index]);
 
         return (
-            <TouchableOpacity 
-                onPress={() => router.push(`/election-detail?id=${election.id}`)}
+            <TouchableOpacity
+                onPress={() => router.push(`/election-detail?id=${election.externalIdElection}`)}
             >
                 <Animated.View style={[
                     styles.electionCard,
-                    { 
+                    {
                         opacity: cardAnim,
                         transform: [{ translateY: slideAnim }]
                     }
                 ]}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.electionInfo}>
-                        <Text style={styles.electionTitle}>{election.nom}</Text>
-                        <Text style={styles.electionDescription}>{election.description}</Text>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.electionInfo}>
+                            <Text style={styles.electionTitle}>{election.titre}</Text>
+                            <Text style={styles.electionDescription}>{election.description}</Text>
+                        </View>
+                        {election.statut &&
+                            <View style={[
+                                styles.statusBadge,
+                                { backgroundColor: getStatusColor(election.statut) }
+                            ]}>
+                                <Text style={styles.statusText}>{election.statut}</Text>
+                            </View>
+                        }
                     </View>
-                    <View style={[
-                        styles.statusBadge,
-                        { backgroundColor: getStatusColor(election.statut) }
-                    ]}>
-                        <Text style={styles.statusText}>{election.statut}</Text>
-                    </View>
-                </View>
 
-                <View style={styles.electionMeta}>
-                    <View style={styles.metaItem}>
-                        <Ionicons name="calendar" size={16} color="#666" />
-                        <Text style={styles.metaText}>
-                            {formatDate(election.dateDebut)}
-                        </Text>
-                    </View>
-                    <View style={styles.metaItem}>
-                        <Ionicons name="people" size={16} color="#666" />
-                        <Text style={styles.metaText}>
-                            {formatNumber(election.nombreElecteurs)} électeurs
-                        </Text>
-                    </View>
-                </View>
-
-                {election.statut !== 'PROGRAMMEE' && (
-                    <View style={styles.participationSection}>
-                        <View style={styles.participationHeader}>
-                            <Text style={styles.participationLabel}>Participation</Text>
-                            <Text style={styles.participationValue}>
-                                {formatPercentage(election.tauxParticipation)}
+                    <View style={styles.electionMeta}>
+                        <View style={styles.metaItem}>
+                            <Ionicons name="calendar" size={16} color="#666" />
+                            <Text style={styles.metaText}>
+                                {formatDate(election.dateDebut)}
                             </Text>
                         </View>
-                        <View style={styles.progressBar}>
-                            <Animated.View 
-                                style={[
-                                    styles.progressFill,
-                                    { 
-                                        width: `${election.tauxParticipation}%`,
-                                        opacity: cardAnim
-                                    }
-                                ]}
-                            />
+                        <View style={styles.metaItem}>
+                            <Ionicons name="people" size={16} color="#666" />
+                            <Text style={styles.metaText}>
+                                {formatNumber(election.nombreElecteursInscrits)} électeurs inscrits
+                            </Text>
                         </View>
                     </View>
-                )}
 
-                <View style={styles.cardActions}>
-                    <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(election)}>
-                        <Ionicons name="pencil" size={16} color="#007AFF" />
-                        <Text style={styles.actionText}>Modifier</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDelete(election)}>
-                        <Ionicons name="trash" size={16} color="#DC3545" />
-                        <Text style={[styles.actionText, styles.deleteText]}>Supprimer</Text>
-                    </TouchableOpacity>
-                </View>
-            </Animated.View>
+                    <View style={styles.cardActions}>
+                        <TouchableOpacity style={styles.actionButton} onPress={() => openModal('edit', election)}>
+                            <Ionicons name="pencil" size={16} color="#007AFF" />
+                            <Text style={styles.actionText}>Modifier</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => openModal('delete', election)}>
+                            <Ionicons name="trash" size={16} color="#DC3545" />
+                            <Text style={[styles.actionText, styles.deleteText]}>Supprimer</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
             </TouchableOpacity>
         );
     };
 
-    return(
+    return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
                 <Ionicons name="ballot" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Élections</Text>
-                <TouchableOpacity style={styles.addButton} onPress={handleCreate}>
+                <TouchableOpacity style={styles.addButton} onPress={() => openModal('create')}>
                     <Ionicons name="add" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
-            
+
             <View style={styles.content}>
                 <Animated.View style={[
                     styles.statsSection,
@@ -228,15 +222,15 @@ export default function Election(){
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statNumber, { color: '#28A745' }]}>
-                            {elections.filter(e => e.statut === 'EN_COURS').length}
+                            {elections.filter(e => e.statut === ElectionDTO.statut.EN_COURS).length}
                         </Text>
                         <Text style={styles.statLabel}>En cours</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statNumber, { color: '#FFC107' }]}>
-                            {elections.filter(e => e.statut === 'PROGRAMMEE').length}
+                            {elections.filter(e => e.statut === ElectionDTO.statut.PLANIFIEE).length}
                         </Text>
-                        <Text style={styles.statLabel}>Programmées</Text>
+                        <Text style={styles.statLabel}>Planifiées</Text>
                     </View>
                 </Animated.View>
 
@@ -246,87 +240,27 @@ export default function Election(){
                 ]}>
                     <Text style={styles.sectionTitle}>Élections Récentes</Text>
                     {elections.map((election, index) => (
-                        <ElectionCard 
-                            key={election.id} 
-                            election={election} 
+                        <ElectionCard
+                            key={election.externalIdElection}
+                            election={election}
                             index={index}
                         />
                     ))}
                 </Animated.View>
             </View>
-            
-            {/* Modales CRUD */}
-            <FormModal
-                visible={showCreateModal}
-                title="Nouvelle Élection"
-                onClose={() => { setShowCreateModal(false); resetForm(); }}
-                onSave={handleSave}
-                saveDisabled={!formData.nom || !formData.description}
-            >
-                <FormField
-                    label="Nom de l'élection"
-                    value={formData.nom}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, nom: text }))}
-                    placeholder="Ex: Élection Présidentielle 2024"
-                    required
-                    icon="ballot"
-                />
-                <FormField
-                    label="Description"
-                    value={formData.description}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                    placeholder="Description de l'élection"
-                    multiline
-                    numberOfLines={3}
-                    required
-                    icon="document-text"
-                />
-                <SelectField
-                    label="Type d'élection"
-                    value={formData.typeElection}
-                    options={typeElectionOptions}
-                    onSelect={(value) => setFormData(prev => ({ ...prev, typeElection: value }))}
-                    required
-                    icon="flag"
-                />
-                <FormField
-                    label="Date de début"
-                    value={formData.dateDebut}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateDebut: text }))}
-                    placeholder="YYYY-MM-DD"
-                    required
-                    icon="calendar"
-                />
-                <FormField
-                    label="Date de fin"
-                    value={formData.dateFin}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateFin: text }))}
-                    placeholder="YYYY-MM-DD"
-                    required
-                    icon="calendar"
-                />
-                <FormField
-                    label="Nombre d'électeurs estimé"
-                    value={formData.nombreElecteurs}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, nombreElecteurs: text }))}
-                    placeholder="Ex: 47500000"
-                    keyboardType="numeric"
-                    icon="people"
-                />
-            </FormModal>
 
             <FormModal
-                visible={showEditModal}
-                title="Modifier l'Élection"
-                onClose={() => { setShowEditModal(false); resetForm(); setSelectedElection(null); }}
+                visible={modalType === 'create' || modalType === 'edit'}
+                title={modalType === 'edit' ? "Modifier l&apos;Élection" : "Nouvelle Élection"}
+                onClose={closeModal}
                 onSave={handleSave}
-                isEdit
-                saveDisabled={!formData.nom || !formData.description}
+                isEdit={modalType === 'edit'}
+                saveDisabled={!formData.titre || !formData.description}
             >
                 <FormField
-                    label="Nom de l'élection"
-                    value={formData.nom}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, nom: text }))}
+                    label="Titre de l'élection"
+                    value={formData.titre}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, titre: text }))}
                     placeholder="Ex: Élection Présidentielle 2024"
                     required
                     icon="ballot"
@@ -340,14 +274,6 @@ export default function Election(){
                     numberOfLines={3}
                     required
                     icon="document-text"
-                />
-                <SelectField
-                    label="Type d'élection"
-                    value={formData.typeElection}
-                    options={typeElectionOptions}
-                    onSelect={(value) => setFormData(prev => ({ ...prev, typeElection: value }))}
-                    required
-                    icon="flag"
                 />
                 <FormField
                     label="Date de début"
@@ -364,23 +290,15 @@ export default function Election(){
                     placeholder="YYYY-MM-DD"
                     required
                     icon="calendar"
-                />
-                <FormField
-                    label="Nombre d'électeurs estimé"
-                    value={formData.nombreElecteurs}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, nombreElecteurs: text }))}
-                    placeholder="Ex: 47500000"
-                    keyboardType="numeric"
-                    icon="people"
                 />
             </FormModal>
 
             <ConfirmModal
-                visible={showDeleteModal}
+                visible={modalType === 'delete'}
                 title="Supprimer l'élection"
-                message={`Êtes-vous sûr de vouloir supprimer l'élection "${selectedElection?.nom}" ? Cette action est irréversible.`}
+                message={`Êtes-vous sûr de vouloir supprimer l'élection "${selectedElection?.titre}" ? Cette action est irréversible.`}
                 onConfirm={confirmDelete}
-                onCancel={() => { setShowDeleteModal(false); setSelectedElection(null); }}
+                onCancel={closeModal}
                 confirmText="Supprimer"
                 type="danger"
             />
@@ -505,36 +423,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666',
         marginLeft: 8,
-    },
-    participationSection: {
-        marginBottom: 16,
-    },
-    participationHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    participationLabel: {
-        fontSize: 14,
-        color: '#666',
-        fontWeight: '500',
-    },
-    participationValue: {
-        fontSize: 16,
-        color: '#007AFF',
-        fontWeight: '600',
-    },
-    progressBar: {
-        height: 6,
-        backgroundColor: '#E5E5E7',
-        borderRadius: 3,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: '#007AFF',
-        borderRadius: 3,
     },
     cardActions: {
         flexDirection: 'row',

@@ -1,17 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { 
-    mockHealthChecks, 
-    mockSystemHealth, 
-    mockHealthHistory,
-    getHealthStatusColor, 
-    getHealthStatusIcon,
-    formatUptime,
-    calculateAverageResponseTime
-} from '../../mock-data';
+import { mockHealthCheck } from '@/mock-data';
+import { HealthStatusDTO } from '@/lib/models';
 
-export default function HealthCheck(){
+export default function HealthCheckScreen() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -28,12 +21,22 @@ export default function HealthCheck(){
                 useNativeDriver: true,
             }),
         ]).start();
-    }, []);
+    }, [fadeAnim, slideAnim]);
 
-    const HealthServiceCard = ({ service, index }: any) => {
+    const getStatusColor = (healthy?: boolean) => {
+        if (healthy === undefined) return '#6C757D';
+        return healthy ? '#28A745' : '#DC3545';
+    };
+
+    const getStatusIcon = (healthy?: boolean): any => {
+        if (healthy === undefined) return 'help-circle';
+        return healthy ? 'checkmark-circle' : 'close-circle';
+    };
+
+    const HealthServiceCard = ({ serviceName, service, index }: { serviceName: string, service: HealthStatusDTO, index: number }) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
         const pulseAnim = useRef(new Animated.Value(1)).current;
-        
+
         useEffect(() => {
             Animated.timing(cardAnim, {
                 toValue: 1,
@@ -42,8 +45,7 @@ export default function HealthCheck(){
                 useNativeDriver: true,
             }).start();
 
-            // Animation de pulsation pour les services en erreur
-            if (service.statut === 'UNHEALTHY') {
+            if (!service.healthy) {
                 Animated.loop(
                     Animated.sequence([
                         Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
@@ -51,9 +53,10 @@ export default function HealthCheck(){
                     ])
                 ).start();
             }
-        }, []);
+        }, [cardAnim, index, pulseAnim, service.healthy]);
 
-        const getResponseTimeColor = (time: number) => {
+        const getResponseTimeColor = (time?: number) => {
+            if (time === undefined) return '#6C757D';
             if (time < 100) return '#28A745';
             if (time < 300) return '#FFC107';
             return '#DC3545';
@@ -62,34 +65,31 @@ export default function HealthCheck(){
         return (
             <Animated.View style={[
                 styles.serviceCard,
-                { 
+                {
                     opacity: cardAnim,
                     transform: [
                         { translateY: slideAnim },
-                        { scale: service.statut === 'UNHEALTHY' ? pulseAnim : 1 }
+                        { scale: !service.healthy ? pulseAnim : 1 }
                     ]
                 }
             ]}>
                 <View style={styles.serviceHeader}>
                     <View style={styles.serviceInfo}>
                         <View style={styles.serviceTitleRow}>
-                            <Ionicons 
-                                name={getHealthStatusIcon(service.statut) as any}
-                                size={20} 
-                                color={getHealthStatusColor(service.statut)} 
+                            <Ionicons
+                                name={getStatusIcon(service.healthy)}
+                                size={20}
+                                color={getStatusColor(service.healthy)}
                             />
-                            <Text style={styles.serviceName}>{service.nom}</Text>
+                            <Text style={styles.serviceName}>{serviceName}</Text>
                             <View style={[
                                 styles.statusBadge,
-                                { backgroundColor: getHealthStatusColor(service.statut) }
+                                { backgroundColor: getStatusColor(service.healthy) }
                             ]}>
-                                <Text style={styles.statusText}>{service.statut}</Text>
+                                <Text style={styles.statusText}>{service.healthy ? 'HEALTHY' : 'UNHEALTHY'}</Text>
                             </View>
                         </View>
-                        <Text style={styles.serviceDescription}>{service.description}</Text>
-                        {service.endpoint && (
-                            <Text style={styles.serviceEndpoint}>{service.endpoint}</Text>
-                        )}
+                        <Text style={styles.serviceDescription}>{service.message}</Text>
                     </View>
                 </View>
 
@@ -97,86 +97,24 @@ export default function HealthCheck(){
                     <View style={styles.metricItem}>
                         <Text style={[
                             styles.metricValue,
-                            { color: getResponseTimeColor(service.tempsReponse) }
+                            { color: getResponseTimeColor(service.responseTime) }
                         ]}>
-                            {service.tempsReponse}ms
+                            {service.responseTime}ms
                         </Text>
                         <Text style={styles.metricLabel}>Temps de réponse</Text>
                     </View>
-                    <View style={styles.metricDivider} />
-                    <View style={styles.metricItem}>
-                        <Text style={styles.metricValue}>
-                            {Math.round((Date.now() - new Date(service.derniereVerification).getTime()) / 1000)}s
-                        </Text>
-                        <Text style={styles.metricLabel}>Dernière vérif.</Text>
-                    </View>
                 </View>
-
-                {service.details && (
-                    <View style={styles.serviceDetails}>
-                        {service.details.cpu && (
-                            <View style={styles.detailRow}>
-                                <Ionicons name="hardware-chip" size={14} color="#666" />
-                                <Text style={styles.detailLabel}>CPU:</Text>
-                                <View style={styles.progressBar}>
-                                    <Animated.View 
-                                        style={[
-                                            styles.progressFill,
-                                            { 
-                                                width: `${service.details.cpu}%`,
-                                                backgroundColor: service.details.cpu > 80 ? '#DC3545' : 
-                                                               service.details.cpu > 60 ? '#FFC107' : '#28A745'
-                                            }
-                                        ]}
-                                    />
-                                </View>
-                                <Text style={styles.detailValue}>{service.details.cpu}%</Text>
-                            </View>
-                        )}
-                        {service.details.memoire && (
-                            <View style={styles.detailRow}>
-                                <Ionicons name="albums" size={14} color="#666" />
-                                <Text style={styles.detailLabel}>RAM:</Text>
-                                <View style={styles.progressBar}>
-                                    <Animated.View 
-                                        style={[
-                                            styles.progressFill,
-                                            { 
-                                                width: `${service.details.memoire}%`,
-                                                backgroundColor: service.details.memoire > 80 ? '#DC3545' : 
-                                                               service.details.memoire > 60 ? '#FFC107' : '#28A745'
-                                            }
-                                        ]}
-                                    />
-                                </View>
-                                <Text style={styles.detailValue}>{service.details.memoire}%</Text>
-                            </View>
-                        )}
-                        {service.details.connexions && (
-                            <View style={styles.detailRow}>
-                                <Ionicons name="link" size={14} color="#666" />
-                                <Text style={styles.detailLabel}>Connexions:</Text>
-                                <Text style={[styles.detailValue, { flex: 1, textAlign: 'right' }]}>
-                                    {service.details.connexions}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-                )}
-
-                <TouchableOpacity style={styles.refreshButton}>
-                    <Ionicons name="refresh" size={16} color="#007AFF" />
-                    <Text style={styles.refreshButtonText}>Actualiser</Text>
-                </TouchableOpacity>
             </Animated.View>
         );
     };
 
-    const healthyServices = mockHealthChecks.filter(s => s.statut === 'HEALTHY').length;
-    const degradedServices = mockHealthChecks.filter(s => s.statut === 'DEGRADED').length;
-    const unhealthyServices = mockHealthChecks.filter(s => s.statut === 'UNHEALTHY').length;
+    const services = Object.entries(mockHealthCheck.services || {});
+    const healthyServices = services.filter(([, service]) => service.healthy).length;
+    const unhealthyServices = services.length - healthyServices;
+    const averageResponseTime = services.reduce((acc, [, service]) => acc + (service.responseTime || 0), 0) / services.length;
 
-    return(
+
+    return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
                 <Ionicons name="pulse" size={32} color="#007AFF" />
@@ -185,7 +123,7 @@ export default function HealthCheck(){
                     <Ionicons name="refresh" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
-            
+
             <View style={styles.content}>
                 <Animated.View style={[
                     styles.systemOverview,
@@ -193,29 +131,29 @@ export default function HealthCheck(){
                 ]}>
                     <View style={[
                         styles.systemStatusCard,
-                        { borderLeftColor: getHealthStatusColor(mockSystemHealth.statusGlobal) }
+                        { borderLeftColor: getStatusColor(mockHealthCheck.status === 'HEALTHY') }
                     ]}>
                         <View style={styles.systemStatusHeader}>
-                            <Ionicons 
-                                name={getHealthStatusIcon(mockSystemHealth.statusGlobal) as any}
-                                size={32} 
-                                color={getHealthStatusColor(mockSystemHealth.statusGlobal)} 
+                            <Ionicons
+                                name={getStatusIcon(mockHealthCheck.status === 'HEALTHY')}
+                                size={32}
+                                color={getStatusColor(mockHealthCheck.status === 'HEALTHY')}
                             />
                             <View style={styles.systemStatusInfo}>
-                                <Text style={styles.systemStatusTitle}>Système Global</Text>
+                                <Text style={styles.systemStatusTitle}>{mockHealthCheck.application}</Text>
                                 <Text style={[
                                     styles.systemStatusValue,
-                                    { color: getHealthStatusColor(mockSystemHealth.statusGlobal) }
+                                    { color: getStatusColor(mockHealthCheck.status === 'HEALTHY') }
                                 ]}>
-                                    {mockSystemHealth.statusGlobal} - {mockSystemHealth.score}%
+                                    {mockHealthCheck.status}
                                 </Text>
                             </View>
                         </View>
                         <Text style={styles.systemStatusDetails}>
-                            {mockSystemHealth.servicesActifs}/{mockSystemHealth.servicesTotal} services opérationnels
+                            {healthyServices}/{services.length} services opérationnels
                         </Text>
                         <Text style={styles.systemStatusDetails}>
-                            Temps de réponse moyen: {mockSystemHealth.tempsReponseTotal}ms
+                            Uptime: {mockHealthCheck.uptime}
                         </Text>
                     </View>
                 </Animated.View>
@@ -229,15 +167,11 @@ export default function HealthCheck(){
                         <Text style={styles.statLabel}>Sains</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statNumber, { color: '#FFC107' }]}>{degradedServices}</Text>
-                        <Text style={styles.statLabel}>Dégradés</Text>
-                    </View>
-                    <View style={styles.statCard}>
                         <Text style={[styles.statNumber, { color: '#DC3545' }]}>{unhealthyServices}</Text>
                         <Text style={styles.statLabel}>En panne</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statNumber}>{calculateAverageResponseTime(mockHealthChecks)}</Text>
+                        <Text style={styles.statNumber}>{Math.round(averageResponseTime)}</Text>
                         <Text style={styles.statLabel}>Moy. ms</Text>
                     </View>
                 </Animated.View>
@@ -247,16 +181,17 @@ export default function HealthCheck(){
                     { opacity: fadeAnim }
                 ]}>
                     <Text style={styles.sectionTitle}>Services Surveillés</Text>
-                    {mockHealthChecks
-                        .sort((a, b) => {
-                            // Trier par statut (les problèmes en premier)
-                            const statusOrder = { 'UNHEALTHY': 0, 'DEGRADED': 1, 'HEALTHY': 2 };
-                            return statusOrder[a.statut] - statusOrder[b.statut];
+                    {services
+                        .sort(([, a], [, b]) => {
+                            const aHealthy = a.healthy ? 1 : 0;
+                            const bHealthy = b.healthy ? 1 : 0;
+                            return aHealthy - bHealthy;
                         })
-                        .map((service, index) => (
-                            <HealthServiceCard 
-                                key={service.id} 
-                                service={service} 
+                        .map(([serviceName, service], index) => (
+                            <HealthServiceCard
+                                key={serviceName}
+                                serviceName={serviceName}
+                                service={service}
                                 index={index}
                             />
                         ))}
@@ -413,27 +348,15 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         lineHeight: 20,
     },
-    serviceEndpoint: {
-        fontSize: 12,
-        color: '#999',
-        fontFamily: 'monospace',
-    },
     serviceMetrics: {
         flexDirection: 'row',
         paddingVertical: 12,
         borderTopWidth: 1,
-        borderBottomWidth: 1,
         borderColor: '#E5E5E7',
-        marginBottom: 12,
     },
     metricItem: {
         flex: 1,
         alignItems: 'center',
-    },
-    metricDivider: {
-        width: 1,
-        backgroundColor: '#E5E5E7',
-        marginHorizontal: 16,
     },
     metricValue: {
         fontSize: 16,
@@ -445,54 +368,5 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         textAlign: 'center',
-    },
-    serviceDetails: {
-        marginBottom: 12,
-        padding: 12,
-        backgroundColor: '#F8F9FA',
-        borderRadius: 8,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    detailLabel: {
-        fontSize: 12,
-        color: '#666',
-        marginLeft: 6,
-        marginRight: 8,
-        minWidth: 40,
-    },
-    progressBar: {
-        flex: 1,
-        height: 6,
-        backgroundColor: '#E5E5E7',
-        borderRadius: 3,
-        marginRight: 8,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        borderRadius: 3,
-    },
-    detailValue: {
-        fontSize: 12,
-        color: '#000',
-        fontWeight: '600',
-        minWidth: 30,
-        textAlign: 'right',
-    },
-    refreshButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-    },
-    refreshButtonText: {
-        fontSize: 14,
-        color: '#007AFF',
-        fontWeight: '500',
-        marginLeft: 4,
     },
 });

@@ -1,70 +1,79 @@
-export const mockElections = [
+import { ElectionDTO } from '../lib/models/ElectionDTO';
+
+export const mockElections: ElectionDTO[] = [
   {
-    id: '1',
-    nom: 'Élection Présidentielle 2024',
+    externalIdElection: '1',
+    titre: 'Élection Présidentielle 2024',
     description: 'Élection présidentielle française',
+    photo: 'https://example.com/election_presidentielle.jpg',
     dateDebut: '2024-04-01T08:00:00Z',
     dateFin: '2024-04-01T20:00:00Z',
-    statut: 'EN_COURS',
-    typeElection: 'PRESIDENTIELLE',
-    nombreElecteurs: 47500000,
-    tauxParticipation: 68.2,
-    resultat: {
-      totalVotes: 32394000,
-      votesBlancs: 1250000,
-      votesNuls: 345000
-    }
+    dateDebutValidite: '2024-03-01T00:00:00Z',
+    dateFinValidite: '2024-05-01T23:59:59Z',
+    statut: ElectionDTO.statut.EN_COURS,
+    dateCreation: '2024-01-15T10:00:00Z',
+    dateModification: '2024-03-20T14:30:00Z',
+    administrateurId: 'admin-123',
+    administrateurNom: 'Jean Dupont',
+    autoriserVoteMultiple: false,
+    nombreMaxVotesParElecteur: 1,
+    resultatsVisibles: true,
+    electeursAutorises: ['electeur-1', 'electeur-2', 'electeur-3'],
+    candidatsParticipants: ['candidat-1', 'candidat-2', 'candidat-3'],
+    nombreElecteursInscrits: 47500000,
+    nombreCandidats: 3,
+    nombreVotes: 32394000,
+    estActive: true,
+    estDansLaPeriodeDeValidite: true,
   },
   {
-    id: '2',
-    nom: 'Élections Municipales Paris',
+    externalIdElection: '2',
+    titre: 'Élections Municipales Paris',
     description: 'Élections municipales de la ville de Paris',
+    photo: 'https://example.com/election_municipales_paris.jpg',
     dateDebut: '2024-03-15T08:00:00Z',
     dateFin: '2024-03-15T20:00:00Z',
-    statut: 'TERMINEE',
-    typeElection: 'MUNICIPALE',
-    nombreElecteurs: 1650000,
-    tauxParticipation: 74.5,
-    resultat: {
-      totalVotes: 1229250,
-      votesBlancs: 89000,
-      votesNuls: 23500
-    }
+    dateDebutValidite: '2024-02-15T00:00:00Z',
+    dateFinValidite: '2024-04-15T23:59:59Z',
+    statut: ElectionDTO.statut.TERMINEE,
+    dateCreation: '2024-01-10T09:00:00Z',
+    dateModification: '2024-03-16T10:00:00Z',
+    administrateurId: 'admin-456',
+    administrateurNom: 'Isabelle Martin',
+    autoriserVoteMultiple: false,
+    nombreMaxVotesParElecteur: 1,
+    resultatsVisibles: true,
+    electeursAutorises: ['electeur-4', 'electeur-5'],
+    candidatsParticipants: ['candidat-4', 'candidat-5'],
+    nombreElecteursInscrits: 1650000,
+    nombreCandidats: 2,
+    nombreVotes: 1229250,
+    estActive: false,
+    estDansLaPeriodeDeValidite: true,
   },
   {
-    id: '3',
-    nom: 'Élections Européennes 2024',
+    externalIdElection: '3',
+    titre: 'Élections Européennes 2024',
     description: 'Élections au Parlement européen',
+    photo: 'https://example.com/election_europeennes.jpg',
     dateDebut: '2024-06-09T08:00:00Z',
     dateFin: '2024-06-09T20:00:00Z',
-    statut: 'PROGRAMMEE',
-    typeElection: 'EUROPEENNE',
-    nombreElecteurs: 47800000,
-    tauxParticipation: 0,
-    resultat: null
-  }
-];
-
-export const mockResultats = [
-  {
-    electionId: '1',
-    candidatId: '1',
-    nom: 'Marie Dupont',
-    votes: 12500000,
-    pourcentage: 38.6
+    dateDebutValidite: '2024-05-09T00:00:00Z',
+    dateFinValidite: '2024-07-09T23:59:59Z',
+    statut: ElectionDTO.statut.PLANIFIEE,
+    dateCreation: '2024-02-01T11:00:00Z',
+    dateModification: '2024-05-10T12:00:00Z',
+    administrateurId: 'admin-789',
+    administrateurNom: 'Paul Bernard',
+    autoriserVoteMultiple: true,
+    nombreMaxVotesParElecteur: 5,
+    resultatsVisibles: false,
+    electeursAutorises: [],
+    candidatsParticipants: [],
+    nombreElecteursInscrits: 47800000,
+    nombreCandidats: 0,
+    nombreVotes: 0,
+    estActive: false,
+    estDansLaPeriodeDeValidite: true,
   },
-  {
-    electionId: '1',
-    candidatId: '2', 
-    nom: 'Jean Martin',
-    votes: 11200000,
-    pourcentage: 34.6
-  },
-  {
-    electionId: '1',
-    candidatId: '3',
-    nom: 'Sophie Bernard',
-    votes: 5800000,
-    pourcentage: 17.9
-  }
 ];

@@ -52,7 +52,7 @@ export const FormModal: React.FC<FormModalProps> = ({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, slideAnim, fadeAnim]);
 
   return (
     <Modal

@@ -56,7 +56,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, scaleAnim, fadeAnim]);
 
   const getTypeConfig = () => {
     switch (type) {

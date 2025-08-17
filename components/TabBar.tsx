@@ -1,10 +1,10 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import HomeScreen from "../app/home";
-import ElecteurScreen from "../app/electeur"; 
-import CampagneScreen from "../app/campagne";
-import ElectionScreen from "../app/election";
-import CandidatScreen from "../app/candidat";
+import HomeScreen from "@/app/home";
+import ElecteurScreen from "@/app/electeur"; 
+import CampagneScreen from "@/app/campagne";
+import ElectionScreen from "@/app/election";
+import CandidatScreen from "@/app/candidat";
 
 
 const Tab = createBottomTabNavigator();

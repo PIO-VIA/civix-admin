@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { FormField, SelectField } from '../components/crud/FormField';
+import { FormField, SelectField } from '@/components/crud/FormField';
 
 export default function ElecteurForm() {
   const [formData, setFormData] = useState({
@@ -277,7 +277,7 @@ export default function ElecteurForm() {
             style={[styles.button, styles.submitButton]} 
             onPress={handleSubmit}
           >
-            <Text style={styles.submitButtonText}>Créer l'électeur</Text>
+            <Text style={styles.submitButtonText}>Créer l\'électeur</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
