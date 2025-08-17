@@ -1,22 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockElecteurs } from '@/mock-data/electeurs';
 import { ElecteurDTO } from '@/lib/models/ElecteurDTO';
+import { useElecteurs } from '@/hooks/useElecteurs';
 
 export default function ElecteurDetail() {
     const { id } = useLocalSearchParams();
     const [electeur, setElecteur] = useState<ElecteurDTO | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { obtenirElecteur, supprimerElecteur, renvoyerIdentifiants } = useElecteurs();
 
     useEffect(() => {
-        const foundElecteur = mockElecteurs.find(e => e.externalIdElecteur === id);
-        if (foundElecteur) {
-            setElecteur(foundElecteur);
-        } else {
-            Alert.alert("Erreur", "Électeur non trouvé.", [{ text: "OK", onPress: () => router.back() }]);
-        }
-    }, [id]);
+        const loadElecteur = async () => {
+            if (typeof id === 'string') {
+                try {
+                    setLoading(true);
+                    const foundElecteur = await obtenirElecteur(id);
+                    if (foundElecteur) {
+                        setElecteur(foundElecteur);
+                    } else {
+                        Alert.alert("Erreur", "Électeur non trouvé.", [{ text: "OK", onPress: () => router.back() }]);
+                    }
+                } catch (error) {
+                    Alert.alert("Erreur", "Impossible de charger l'électeur.", [{ text: "OK", onPress: () => router.back() }]);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadElecteur();
+    }, [id, obtenirElecteur]);
 
     const handleEdit = () => {
         router.push(`/electeur-form?id=${electeur?.externalIdElecteur}`);
@@ -31,20 +46,39 @@ export default function ElecteurDetail() {
                 {
                     text: 'Supprimer',
                     style: 'destructive',
-                    onPress: () => {
-                        Alert.alert('Succès', 'Électeur supprimé (simulation)', [
-                            { text: 'OK', onPress: () => router.back() }
-                        ]);
+                    onPress: async () => {
+                        if (electeur?.externalIdElecteur) {
+                            const success = await supprimerElecteur(electeur.externalIdElecteur);
+                            if (success) {
+                                Alert.alert('Succès', 'Électeur supprimé avec succès', [
+                                    { text: 'OK', onPress: () => router.back() }
+                                ]);
+                            } else {
+                                Alert.alert('Erreur', 'Impossible de supprimer l\'électeur');
+                            }
+                        }
                     }
                 }
             ]
         );
     };
 
-    if (!electeur) {
+    const handleResendCredentials = async () => {
+        if (electeur?.externalIdElecteur) {
+            const success = await renvoyerIdentifiants(electeur.externalIdElecteur);
+            if (success) {
+                Alert.alert('Succès', 'Identifiants renvoyés par email');
+            } else {
+                Alert.alert('Erreur', 'Impossible de renvoyer les identifiants');
+            }
+        }
+    };
+
+    if (loading || !electeur) {
         return (
             <View style={[styles.container, styles.centered]}>
-                <Text>Chargement...</Text>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement...</Text>
             </View>
         );
     }
@@ -95,6 +129,13 @@ export default function ElecteurDetail() {
                     <InfoRow icon="person-outline" label="Nom d'utilisateur" value={electeur.username || 'N/A'} />
                     <InfoRow icon="mail-outline" label="Email" value={electeur.email || 'N/A'} />
                     <InfoRow icon="finger-print-outline" label="Empreinte Digitale" value={electeur.empreinteDigitale || 'N/A'} />
+                </View>
+
+                <View style={styles.actionSection}>
+                    <TouchableOpacity style={styles.resendButton} onPress={handleResendCredentials}>
+                        <Ionicons name="mail-outline" size={20} color="#007AFF" />
+                        <Text style={styles.resendButtonText}>Renvoyer les identifiants</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.dangerZone}>
@@ -240,6 +281,28 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#000',
         fontWeight: '500',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#666',
+    },
+    actionSection: {
+        marginTop: 16,
+    },
+    resendButton: {
+        backgroundColor: '#F0F8FF',
+        borderRadius: 12,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    resendButtonText: {
+        fontSize: 16,
+        color: '#007AFF',
+        fontWeight: '600',
+        marginLeft: 8,
     },
     dangerZone: {
         marginTop: 16,

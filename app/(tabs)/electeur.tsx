@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockElecteurs } from '@/mock-data/electeurs';
 import { ElecteurDTO } from '@/lib/models/ElecteurDTO';
+import { useElecteurs } from '@/hooks/useElecteurs';
 
 export default function Electeur() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
+    const { electeurs, loading, error, refreshElecteurs } = useElecteurs();
 
     useEffect(() => {
         Animated.parallel([
@@ -16,7 +17,13 @@ export default function Electeur() {
         ]).start();
     }, [fadeAnim, slideAnim]);
 
-    const electeursAyantVote = mockElecteurs.filter(e => e.avote).length;
+    useEffect(() => {
+        if (error) {
+            Alert.alert('Erreur', error);
+        }
+    }, [error]);
+
+    const electeursAyantVote = electeurs.filter(e => e.avote).length;
 
     const ElecteurCard = ({ electeur, index }: { electeur: ElecteurDTO, index: number }) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
@@ -54,6 +61,9 @@ export default function Electeur() {
             <View style={styles.header}>
                 <Ionicons name="people-outline" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Électeurs</Text>
+                <TouchableOpacity style={styles.refreshButton} onPress={refreshElecteurs}>
+                    <Ionicons name="refresh" size={24} color="#007AFF" />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.addButton} onPress={() => router.push('/electeur-form')}>
                     <Ionicons name="add" size={28} color="#007AFF" />
                 </TouchableOpacity>
@@ -62,7 +72,7 @@ export default function Electeur() {
             <View style={styles.content}>
                 <Animated.View style={[styles.statsSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statNumber}>{mockElecteurs.length}</Text>
+                        <Text style={styles.statNumber}>{electeurs.length}</Text>
                         <Text style={styles.statLabel}>Total Inscrits</Text>
                     </View>
                     <View style={styles.statCard}>
@@ -70,16 +80,28 @@ export default function Electeur() {
                         <Text style={styles.statLabel}>Ont Voté</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statNumber, { color: '#6C757D' }]}>{mockElecteurs.length - electeursAyantVote}</Text>
+                        <Text style={[styles.statNumber, { color: '#6C757D' }]}>{electeurs.length - electeursAyantVote}</Text>
                         <Text style={styles.statLabel}>En Attente</Text>
                     </View>
                 </Animated.View>
 
                 <Animated.View style={styles.electeursSection}>
                     <Text style={styles.sectionTitle}>Liste des Électeurs</Text>
-                    {mockElecteurs.map((electeur, index) => (
-                        <ElecteurCard key={electeur.externalIdElecteur} electeur={electeur} index={index} />
-                    ))}
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#007AFF" />
+                            <Text style={styles.loadingText}>Chargement des électeurs...</Text>
+                        </View>
+                    ) : electeurs.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="people-outline" size={48} color="#666" />
+                            <Text style={styles.emptyText}>Aucun électeur trouvé</Text>
+                        </View>
+                    ) : (
+                        electeurs.map((electeur, index) => (
+                            <ElecteurCard key={electeur.externalIdElecteur} electeur={electeur} index={index} />
+                        ))
+                    )}
                 </Animated.View>
             </View>
         </ScrollView>
@@ -93,6 +115,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#E5E5E7',
     },
     headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#000', marginLeft: 12, flex: 1 },
+    refreshButton: { padding: 8, marginRight: 8 },
     addButton: { padding: 8 },
     content: { padding: 16 },
     statsSection: {
@@ -123,4 +146,25 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     voteStatusText: { color: 'white', fontSize: 12, fontWeight: '600', marginLeft: 6 },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#666',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
+    emptyText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+    },
 });
