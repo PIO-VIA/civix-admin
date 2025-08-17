@@ -134,7 +134,7 @@ export default function ElectionForm() {
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Informations sur l\'Élection</Text>
+                    <Text style={styles.sectionTitle}>{"Informations sur l'Élection"}</Text>
                     <FormField
                         label="Titre de l\'élection"
                         value={formData.titre || ''}
