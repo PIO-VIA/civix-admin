@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet, TouchableOpacity, TextInput, ImageBackground, Alert } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, TextInput, ImageBackground, Alert, ActivityIndicator } from "react-native";
 import { useState } from "react";
 import { Router, useRouter } from "expo-router";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -10,6 +10,7 @@ import { useEffect } from "react";
 export default function Login() {
     const router = useRouter();
     const [secure, setSecure] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { login, isAuthenticated, isLoading: authLoading } = useAuth();
     const [error, setError] = useState<string>("");
 
@@ -31,21 +32,44 @@ export default function Login() {
             return;
         }
 
+        if (isSubmitting) return; // Empêcher les double-clics
+
         try {
+            setIsSubmitting(true);
+            setError("");
             const response = await login(formData);
             
             if (response.premierConnexion) {
-              console.log("Première connexion détectée");
-              // Optionnel : Naviguer vers un écran de changement de mot de passe
+                console.log("Première connexion détectée");
+                Alert.alert(
+                    "Première connexion", 
+                    "Changement de mot de passe recommandé lors de votre première connexion."
+                );
             }
             
             router.replace('/(tabs)/home');
 
-          } catch (error) {
+        } catch (error: any) {
             console.error("Erreur de connexion:", error);
-            setError("Identifiants invalides. Veuillez réessayer.");
-            Alert.alert("Échec de la connexion", "Identifiants invalides. Veuillez réessayer.");
-          }
+            
+            // Gestion d'erreurs plus spécifique
+            let errorMessage = "Une erreur s'est produite lors de la connexion.";
+            
+            if (error?.message) {
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                    errorMessage = "Identifiants invalides.";
+                } else if (error.message.includes('Network') || error.message.includes('fetch')) {
+                    errorMessage = "Problème de connexion au serveur.";
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            setError(errorMessage);
+            Alert.alert("Échec de la connexion", errorMessage);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleInputChange = (name: keyof LoginRequest, value: string) => {
@@ -97,8 +121,19 @@ export default function Login() {
 
                 {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-                <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                    <Text style={styles.buttonText}>Se connecter</Text>
+                <TouchableOpacity 
+                    style={[styles.button, (isSubmitting || authLoading) && styles.buttonDisabled]} 
+                    onPress={handleLogin}
+                    disabled={isSubmitting || authLoading}
+                >
+                    {(isSubmitting || authLoading) ? (
+                        <View style={styles.buttonContent}>
+                            <ActivityIndicator size="small" color="white" />
+                            <Text style={[styles.buttonText, { marginLeft: 8 }]}>Connexion...</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.buttonText}>Se connecter</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </ImageBackground>
@@ -159,6 +194,14 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         borderRadius: 10,
         alignItems: "center",
+    },
+    buttonDisabled: {
+        backgroundColor: "#6C757D",
+        opacity: 0.7,
+    },
+    buttonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     buttonText: {
         color: "white",

@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Image } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Image, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockCampagnes } from '@/mock-data/campagnes';
 import { CampagneDTO } from '@/lib/models/CampagneDTO';
+import { useCampagnes } from '@/hooks/useCampagnes';
 
 export default function Campagne() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
+    const { campagnes, statistiques, loading, error, refreshCampagnes } = useCampagnes();
 
     useEffect(() => {
         Animated.parallel([
@@ -23,6 +24,12 @@ export default function Campagne() {
             }),
         ]).start();
     }, [fadeAnim, slideAnim]);
+
+    useEffect(() => {
+        if (error) {
+            Alert.alert("Erreur", error);
+        }
+    }, [error]);
 
     const CampagneCard = ({ campagne, index }: { campagne: CampagneDTO, index: number }) => {
         const cardAnim = useRef(new Animated.Value(0)).current;
@@ -77,19 +84,39 @@ export default function Campagne() {
                     { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
                 ]}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statNumber}>{mockCampagnes.length}</Text>
+                        <Text style={styles.statNumber}>
+                            {loading ? '...' : statistiques?.nombreCampagnes || campagnes.length}
+                        </Text>
                         <Text style={styles.statLabel}>Campagnes en cours</Text>
                     </View>
                 </Animated.View>
 
                 <Animated.View style={styles.campagnesSection}>
-                    {mockCampagnes.map((campagne, index) => (
-                        <CampagneCard
-                            key={campagne.externalIdCampagne}
-                            campagne={campagne}
-                            index={index}
-                        />
-                    ))}
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#007AFF" />
+                            <Text style={styles.loadingText}>Chargement des campagnes...</Text>
+                        </View>
+                    ) : campagnes.length > 0 ? (
+                        campagnes.map((campagne, index) => (
+                            <CampagneCard
+                                key={campagne.externalIdCampagne}
+                                campagne={campagne}
+                                index={index}
+                            />
+                        ))
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="megaphone-outline" size={64} color="#CCC" />
+                            <Text style={styles.emptyText}>Aucune campagne disponible</Text>
+                            <TouchableOpacity 
+                                style={styles.emptyButton}
+                                onPress={() => router.push('/campagne-form')}
+                            >
+                                <Text style={styles.emptyButtonText}>Créer une campagne</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </Animated.View>
             </View>
         </ScrollView>
@@ -139,5 +166,41 @@ const styles = StyleSheet.create({
     candidatName: {
         fontSize: 14, fontWeight: '600', color: '#FFF',
         marginLeft: 8,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 12,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        marginVertical: 20,
+    },
+    emptyText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 16,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    emptyButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    emptyButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

@@ -6,12 +6,14 @@ import { AuthResponse } from '@/lib/models/AuthResponse';
 import { SessionInfoDTO } from '@/lib/models/SessionInfoDTO';
 import { LoginRequest } from '@/lib/models/LoginRequest';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { configureAPI, setAuthToken } from '@/lib/config/apiConfig';
 
 interface AuthUser {
   userId: string;
   username: string;
   email: string;
-  
+  role?: string;
+  avote?: boolean;
   premierConnexion?: boolean;
 }
 
@@ -21,7 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<AuthResponse>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
 
@@ -46,10 +48,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!user && !!token;
 
+  // Configuration API au démarrage
+  useEffect(() => {
+    configureAPI();
+  }, []);
+
   // Initialisation au chargement de l'app
   useEffect(() => {
     initializeAuth();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initializeAuth = async () => {
     try {
@@ -57,11 +64,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (storedToken) {
         setToken(storedToken);
+        setAuthToken(storedToken);
         await verifyAndLoadSession(storedToken);
       }
     } catch (error) {
       console.error('Erreur lors de l\'initialisation de l\'auth:', error);
-      clearAuth();
+      await clearAuth();
     } finally {
       setIsLoading(false);
     }
@@ -69,29 +77,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyAndLoadSession = async (authToken: string) => {
     try {
-      // Vérifier la validité du token
-      let isValid = false;
-      let sessionInfo: SessionInfoDTO;
-
+      // Vérifier la validité du token et récupérer les infos de session
+      const authHeader = `Bearer ${authToken}`;
       
-        isValid = await AuthentificationService.verifierTokenAdmin(`Bearer ${authToken}`);
-        sessionInfo = await AuthentificationService.getSessionAdmin(`Bearer ${authToken}`);
-      
+      const [isValid, sessionInfo] = await Promise.all([
+        AuthentificationService.verifierTokenAdmin(authHeader),
+        AuthentificationService.getSessionAdmin(authHeader)
+      ]);
 
       if (isValid && sessionInfo.tokenValide) {
-        const userData = {
+        const userData: AuthUser = {
           userId: sessionInfo.userId || '',
           username: sessionInfo.username || '',
           email: sessionInfo.email || '',
+          role: sessionInfo.role,
           avote: sessionInfo.avote
         };
         setUser(userData);
       } else {
-        throw new Error('Token invalide');
+        throw new Error('Token invalide ou session expirée');
       }
     } catch (error) {
       console.error('Erreur vérification session:', error);
-      clearAuth();
+      await clearAuth();
       throw error;
     }
   };
@@ -105,15 +113,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
 
       if (response.token) {
-
-        AsyncStorage.setItem('token', response.token);
+        await AsyncStorage.setItem('token', response.token);
         
         setToken(response.token);
-        const userData = {
+        setAuthToken(response.token);
+        const userData: AuthUser = {
           userId: response.userId || '',
           username: response.username || '',
           email: response.email || '',
-          
+          role: response.role,
+          avote: response.avote,
           premierConnexion: response.premierConnexion
         };
         
@@ -133,21 +142,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('🚪 Début de la déconnexion...');
       // Appeler l'API de déconnexion si possible
       if (token) {
+        console.log('📡 Appel API de déconnexion...');
         await AuthentificationService.logout();
+        console.log('✅ API déconnexion terminée');
       }
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('❌ Erreur lors de la déconnexion API:', error);
+      // Continue avec la déconnexion locale même si l'API échoue
     } finally {
-      clearAuth();
+      console.log('🧹 Nettoyage des données locales...');
+      await clearAuth();
+      console.log('✅ Déconnexion complète terminée');
     }
   };
 
-  const clearAuth = () => {
-    AsyncStorage.removeItem('token');
+  const clearAuth = async () => {
+    try {
+      console.log('🗑️ Suppression du token du stockage...');
+      await AsyncStorage.removeItem('token');
+      console.log('✅ Token supprimé du stockage');
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression du token:', error);
+    }
+    
+    console.log('🔄 Réinitialisation des états...');
     setToken(null);
     setUser(null);
+    setAuthToken(null);
+    console.log('✅ États réinitialisés');
   };
 
   const refreshSession = async () => {
@@ -157,7 +182,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await verifyAndLoadSession(token);
     } catch (error) {
       console.error('Erreur lors du rafraîchissement de la session:', error);
-      clearAuth();
+      await clearAuth();
     }
   };
 

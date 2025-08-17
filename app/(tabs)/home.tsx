@@ -36,6 +36,7 @@ export default function Home() {
         return `${num.toFixed(1)}%`;
     }
 
+
     const StatCard = ({ title, value, icon, color, subtitle }: any) => (
         <Animated.View style={[
             styles.statCard,

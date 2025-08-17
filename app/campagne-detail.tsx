@@ -1,28 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockCampagnes } from '@/mock-data/campagnes';
-import { CampagneDTO } from '@/lib/models/CampagneDTO';
+import { CampagneDetailDTO } from '@/lib/models/CampagneDetailDTO';
+import { useCampagnes } from '@/hooks/useCampagnes';
 
 export default function CampagneDetail() {
     const { id } = useLocalSearchParams();
-    const [campagne, setCampagne] = useState<CampagneDTO | null>(null);
+    const [campagne, setCampagne] = useState<CampagneDetailDTO | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { obtenirCampagne, supprimerCampagne } = useCampagnes();
 
     useEffect(() => {
-        const foundCampagne = mockCampagnes.find(c => c.externalIdCampagne === id);
-        if (foundCampagne) {
-            setCampagne(foundCampagne);
-        } else {
-            Alert.alert("Erreur", "Campagne non trouvée.", [{ text: "OK", onPress: () => router.back() }]);
-        }
-    }, [id]);
+        const loadCampagne = async () => {
+            if (!id || typeof id !== 'string') {
+                Alert.alert("Erreur", "ID de campagne invalide.", [{ text: "OK", onPress: () => router.back() }]);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const campagneData = await obtenirCampagne(id);
+                if (campagneData) {
+                    setCampagne(campagneData);
+                } else {
+                    Alert.alert("Erreur", "Campagne non trouvée.", [{ text: "OK", onPress: () => router.back() }]);
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement de la campagne:', error);
+                Alert.alert("Erreur", "Impossible de charger la campagne.", [{ text: "OK", onPress: () => router.back() }]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadCampagne();
+    }, [id, obtenirCampagne]);
 
     const handleEdit = () => {
         router.push(`/campagne-form?id=${campagne?.externalIdCampagne}`);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
+        if (!campagne?.externalIdCampagne) return;
+
         Alert.alert(
             "Supprimer la campagne",
             `Êtes-vous sûr de vouloir supprimer la campagne "${campagne?.description}" ? Cette action est irréversible.`,
@@ -31,20 +52,43 @@ export default function CampagneDetail() {
                 {
                     text: 'Supprimer',
                     style: 'destructive',
-                    onPress: () => {
-                        Alert.alert('Succès', 'Campagne supprimée (simulation)', [
-                            { text: 'OK', onPress: () => router.back() }
-                        ]);
+                    onPress: async () => {
+                        try {
+                            const success = await supprimerCampagne(campagne.externalIdCampagne);
+                            if (success) {
+                                Alert.alert('Succès', 'Campagne supprimée avec succès', [
+                                    { text: 'OK', onPress: () => router.back() }
+                                ]);
+                            } else {
+                                Alert.alert('Erreur', 'Impossible de supprimer la campagne');
+                            }
+                        } catch (error) {
+                            console.error('Erreur lors de la suppression:', error);
+                            Alert.alert('Erreur', 'Une erreur est survenue lors de la suppression');
+                        }
                     }
                 }
             ]
         );
     };
 
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centered]}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement de la campagne...</Text>
+            </View>
+        );
+    }
+
     if (!campagne) {
         return (
             <View style={[styles.container, styles.centered]}>
-                <Text>Chargement...</Text>
+                <Ionicons name="alert-circle-outline" size={64} color="#CCC" />
+                <Text style={styles.errorText}>Campagne non trouvée</Text>
+                <TouchableOpacity style={styles.backToListButton} onPress={() => router.back()}>
+                    <Text style={styles.backToListText}>Retour à la liste</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -77,7 +121,7 @@ export default function CampagneDetail() {
                         >
                             <Ionicons name="person-circle-outline" size={40} color="#007AFF" />
                             <View style={styles.candidatInfo}>
-                                <Text style={styles.candidatName}>{campagne.candidat?.username}</Text>
+                                <Text style={styles.candidatName}>{campagne.candidat?.username || 'Candidat inconnu'}</Text>
                                 <Text style={styles.candidatLink}>Voir le profil</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={24} color="#C7C7CC" />
@@ -128,4 +172,27 @@ const styles = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     },
     deleteButtonText: { fontSize: 16, color: '#DC3545', fontWeight: '600', marginLeft: 8 },
+    loadingText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 12,
+    },
+    errorText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 16,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    backToListButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    backToListText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });
