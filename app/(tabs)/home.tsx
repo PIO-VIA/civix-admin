@@ -3,6 +3,7 @@ import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "
 import { Ionicons } from '@expo/vector-icons';
 import { mockDashboardAdmin } from '@/mock-data';
 import { AlerteDTO } from '@/lib/models';
+import { mockElections } from '@/mock-data/elections';
 
 export default function Home() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -92,6 +93,13 @@ export default function Home() {
                 {/* Statistiques principales */}
                 <View style={styles.statsContainer}>
                     <StatCard
+                        title="Élections"
+                        value={mockElections.length}
+                        subtitle={`${mockElections.filter(e => e.statut === 'EN_COURS').length} actives`}
+                        icon="ballot"
+                        color="#007AFF"
+                    />
+                    <StatCard
                         title="Électeurs"
                         value={formatNumber(statistiquesAdmin?.totalElecteurs)}
                         subtitle="Inscrits"
@@ -111,13 +119,6 @@ export default function Home() {
                         subtitle={`${statistiquesAdmin?.totalCampagnes} campagnes`}
                         icon="person-circle"
                         color="#FFA07A"
-                    />
-                     <StatCard
-                        title="Votes"
-                        value={formatNumber(statistiquesAdmin?.totalVotes)}
-                        subtitle="Total"
-                        icon="stats-chart"
-                        color="#007AFF"
                     />
                 </View>
 

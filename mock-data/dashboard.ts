@@ -2,12 +2,12 @@ import { DashboardAdminDTO } from '../lib/models/DashboardAdminDTO';
 
 export const mockDashboardAdmin: DashboardAdminDTO = {
   statistiquesAdmin: {
-    totalElecteurs: 47500000,
-    electeursAyantVote: 32394000,
-    totalCandidats: 24,
-    totalCampagnes: 18,
-    totalVotes: 32394000,
-    tauxParticipation: 68.2,
+    totalElecteurs: 5,
+    electeursAyantVote: 3,
+    totalCandidats: 4,
+    totalCampagnes: 4,
+    totalVotes: 33623250,
+    tauxParticipation: 60,
   },
   resultatsDetailles: [
     {

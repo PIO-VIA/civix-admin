@@ -186,6 +186,121 @@ export const SelectField: React.FC<SelectFieldProps> = ({
   );
 };
 
+interface MultiSelectFieldProps {
+    label: string;
+    selectedValues: string[];
+    options: { label: string; value: string }[];
+    onSelectionChange: (values: string[]) => void;
+    placeholder?: string;
+    required?: boolean;
+    error?: string;
+    icon?: string;
+  }
+
+  export const MultiSelectField: React.FC<MultiSelectFieldProps> = ({
+    label,
+    selectedValues,
+    options,
+    onSelectionChange,
+    placeholder = 'Sélectionner des options',
+    required = false,
+    error,
+    icon
+  }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    const toggleOption = (value: string) => {
+      if (selectedValues.includes(value)) {
+        onSelectionChange(selectedValues.filter(v => v !== value));
+      } else {
+        onSelectionChange([...selectedValues, value]);
+      }
+    };
+
+    const selectAll = () => {
+      onSelectionChange(options.map(o => o.value));
+    };
+
+    const deselectAll = () => {
+      onSelectionChange([]);
+    };
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.labelContainer}>
+          {icon && <Ionicons name={icon as any} size={16} color="#666" style={styles.labelIcon} />}
+          <Text style={styles.label}>
+            {label}
+            {required && <Text style={styles.required}> *</Text>}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.input,
+            error && styles.inputError
+          ]}
+          onPress={() => setIsOpen(!isOpen)}
+        >
+          <Text style={[
+            styles.inputText,
+            selectedValues.length === 0 && styles.placeholder
+          ]}>
+            {selectedValues.length > 0 ? `${selectedValues.length} options sélectionnées` : placeholder}
+          </Text>
+          <Ionicons
+            name={isOpen ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#666"
+          />
+        </TouchableOpacity>
+
+        {isOpen && (
+          <View style={styles.optionsContainer}>
+            <View style={styles.multiSelectActions}>
+              <TouchableOpacity onPress={selectAll}>
+                <Text style={styles.multiSelectActionText}>Tout sélectionner</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={deselectAll}>
+                <Text style={styles.multiSelectActionText}>Tout désélectionner</Text>
+              </TouchableOpacity>
+            </View>
+            {options.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.option,
+                  selectedValues.includes(option.value) && styles.optionSelected
+                ]}
+                onPress={() => toggleOption(option.value)}
+              >
+                <Ionicons
+                  name={selectedValues.includes(option.value) ? "checkbox" : "square-outline"}
+                  size={20}
+                  color={selectedValues.includes(option.value) ? "#007AFF" : "#666"}
+                  style={styles.checkboxIcon}
+                />
+                <Text style={[
+                  styles.optionText,
+                  selectedValues.includes(option.value) && styles.optionTextSelected
+                ]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={14} color="#DC3545" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
@@ -276,4 +391,18 @@ const styles = StyleSheet.create({
     color: '#DC3545',
     marginLeft: 4,
   },
+  multiSelectActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+},
+multiSelectActionText: {
+    color: '#007AFF',
+    fontWeight: '500',
+},
+checkboxIcon: {
+    marginRight: 12,
+},
 });

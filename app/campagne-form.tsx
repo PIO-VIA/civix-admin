@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { FormField, SelectField } from '@/components/crud/FormField';
 import { mockCampagnes } from '@/mock-data/campagnes';
 import { mockCandidats } from '@/mock-data/candidats';
 import { CampagneDTO } from '@/lib/models/CampagneDTO';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function CampagneForm() {
     const { id } = useLocalSearchParams();
@@ -37,6 +38,19 @@ export default function CampagneForm() {
             }
         }
     }, [id, isEditMode]);
+
+    const pickImage = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setFormData(prev => ({ ...prev, photo: result.assets[0].uri }));
+        }
+    };
 
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
@@ -99,13 +113,13 @@ export default function CampagneForm() {
                         placeholder="Ex: Campagne de sensibilisation..."
                         required error={errors.description} icon="document-text-outline"
                     />
-                    <FormField
-                        label="URL de la photo de couverture"
-                        value={formData.photo}
-                        onChangeText={(value) => updateFormData('photo', value)}
-                        placeholder="https://example.com/photo.jpg"
-                        icon="image-outline"
-                    />
+                    <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+                        <Ionicons name="camera" size={24} color="#007AFF" />
+                        <Text style={styles.imagePickerText}>Choisir une photo</Text>
+                    </TouchableOpacity>
+                    {formData.photo ? (
+                        <Image source={{ uri: formData.photo }} style={styles.previewImage} />
+                    ) : null}
                     <SelectField
                         label="Candidat Associé"
                         value={formData.candidatId}
@@ -142,4 +156,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#007AFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginVertical: 24,
     },
     submitButtonText: { fontSize: 16, fontWeight: '600', color: 'white' },
+    imagePicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F8FF',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    imagePickerText: {
+        marginLeft: 8,
+        color: '#007AFF',
+        fontWeight: '500',
+    },
+    previewImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
 });

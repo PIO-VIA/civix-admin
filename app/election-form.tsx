@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { FormField } from '../components/crud/FormField';
-import { mockElections } from '../mock-data/elections';
-import { ElectionDTO } from '../lib/models/ElectionDTO';
+import { FormField, MultiSelectField, SelectField } from '@/components/crud/FormField';
+import { mockElections } from '@/mock-data/elections';
+import { mockElecteurs } from '@/mock-data/electeurs';
+import { ElectionDTO } from '@/lib/models/ElectionDTO';
+import * as ImagePicker from 'expo-image-picker';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 export default function ElectionForm() {
     const { id } = useLocalSearchParams();
@@ -15,12 +18,23 @@ export default function ElectionForm() {
         description: '',
         dateDebut: '',
         dateFin: '',
-        nombreElecteursInscrits: 0,
-        autoriserVoteMultiple: false,
-        nombreMaxVotesParElecteur: 1,
-        resultatsVisibles: true,
+        photo: '',
+        electeursAutorises: [],
+        statut: ElectionDTO.statut.PLANIFIEE,
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+    const [datePickerField, setDatePickerField] = useState<keyof Partial<ElectionDTO> | null>(null);
+
+    const electeurOptions = mockElecteurs.map(e => ({
+        label: e.username || 'Sans nom',
+        value: e.externalIdElecteur || '',
+    }));
+
+    const statutOptions = Object.values(ElectionDTO.statut).map(s => ({
+        label: s,
+        value: s,
+    }));
 
     useEffect(() => {
         if (isEditMode) {
@@ -28,8 +42,8 @@ export default function ElectionForm() {
             if (electionToEdit) {
                 setFormData({
                     ...electionToEdit,
-                    dateDebut: electionToEdit.dateDebut?.split('T')[0],
-                    dateFin: electionToEdit.dateFin?.split('T')[0],
+                    dateDebut: electionToEdit.dateDebut ? electionToEdit.dateDebut.split('T')[0] : '',
+                    dateFin: electionToEdit.dateFin ? electionToEdit.dateFin.split('T')[0] : '',
                 });
             } else {
                 Alert.alert('Erreur', 'Élection non trouvée.', [{ text: 'OK', onPress: () => router.back() }]);
@@ -37,16 +51,43 @@ export default function ElectionForm() {
         }
     }, [id, isEditMode]);
 
+    const pickImage = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setFormData(prev => ({ ...prev, photo: result.assets[0].uri }));
+        }
+    };
+
+    const showDatePicker = (field: keyof Partial<ElectionDTO>) => {
+        setDatePickerField(field);
+        setDatePickerVisibility(true);
+    };
+
+    const hideDatePicker = () => {
+        setDatePickerVisibility(false);
+        setDatePickerField(null);
+    };
+
+    const handleConfirmDate = (date: Date) => {
+        if (datePickerField) {
+            updateFormData(datePickerField, date.toISOString().split('T')[0]);
+        }
+        hideDatePicker();
+    };
+
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
         if (!formData.titre?.trim()) newErrors.titre = 'Le titre est requis';
         if (!formData.description?.trim()) newErrors.description = 'La description est requise';
-        if (!formData.dateDebut) newErrors.dateDebut = 'La date de début est requise';
-        if (!formData.dateFin) newErrors.dateFin = 'La date de fin est requise';
-
-        if (formData.dateDebut && formData.dateFin && formData.dateFin < formData.dateDebut) {
-            newErrors.dateFin = 'La date de fin doit être après la date de début';
-        }
+        if (!formData.dateDebut?.trim()) newErrors.dateDebut = 'La date de début est requise';
+        if (!formData.dateFin?.trim()) newErrors.dateFin = 'La date de fin est requise';
+        if (!formData.electeursAutorises?.length) newErrors.electeursAutorises = 'Veuillez sélectionner au moins un électeur';
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -60,17 +101,12 @@ export default function ElectionForm() {
         const finalData: ElectionDTO = {
             ...formData,
             externalIdElection: isEditMode ? (id as string) : Date.now().toString(),
-            titre: formData.titre || '',
-            description: formData.description || '',
-            dateDebut: `${formData.dateDebut}T08:00:00Z`,
-            dateFin: `${formData.dateFin}T20:00:00Z`,
-            statut: formData.statut || ElectionDTO.statut.PLANIFIEE,
+            dateDebut: formData.dateDebut + 'T08:00:00Z',
+            dateFin: formData.dateFin + 'T20:00:00Z',
             dateCreation: isEditMode ? formData.dateCreation : new Date().toISOString(),
             dateModification: new Date().toISOString(),
         };
 
-        // In a real app, you would call an API here.
-        // For now, we simulate the update.
         console.log('Submitting data:', finalData);
 
         Alert.alert(
@@ -80,7 +116,7 @@ export default function ElectionForm() {
         );
     };
 
-    const updateFormData = (field: keyof ElectionDTO, value: any) => {
+    const updateFormData = (field: keyof typeof formData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
@@ -98,7 +134,7 @@ export default function ElectionForm() {
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Informations Générales</Text>
+                    <Text style={styles.sectionTitle}>Informations sur l\'Élection</Text>
                     <FormField
                         label="Titre de l\'élection"
                         value={formData.titre || ''}
@@ -110,65 +146,66 @@ export default function ElectionForm() {
                         label="Description"
                         value={formData.description || ''}
                         onChangeText={(value) => updateFormData('description', value)}
-                        placeholder="Description détaillée de l\'élection"
+                        placeholder="Description de l\'élection"
                         multiline required error={errors.description} icon="document-text-outline"
                     />
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Période de Vote</Text>
                     <FormField
                         label="Date de début"
                         value={formData.dateDebut || ''}
-                        onChangeText={(value) => updateFormData('dateDebut', value)}
-                        placeholder="YYYY-MM-DD" required error={errors.dateDebut} icon="calendar-outline"
+                        onPress={() => showDatePicker('dateDebut')}
+                        placeholder="YYYY-MM-DD"
+                        required error={errors.dateDebut} icon="calendar-outline"
+                        editable={false}
                     />
                     <FormField
                         label="Date de fin"
                         value={formData.dateFin || ''}
-                        onChangeText={(value) => updateFormData('dateFin', value)}
-                        placeholder="YYYY-MM-DD" required error={errors.dateFin} icon="calendar-outline"
+                        onPress={() => showDatePicker('dateFin')}
+                        placeholder="YYYY-MM-DD"
+                        required error={errors.dateFin} icon="calendar-outline"
+                        editable={false}
                     />
+                    <SelectField
+                        label="Statut"
+                        value={formData.statut || ''}
+                        options={statutOptions}
+                        onSelect={(value) => updateFormData('statut', value)}
+                        required
+                        icon="flag-outline"
+                    />
+                    <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+                        <Ionicons name="camera" size={24} color="#007AFF" />
+                        <Text style={styles.imagePickerText}>Choisir une photo</Text>
+                    </TouchableOpacity>
+                    {formData.photo ? (
+                        <Image source={{ uri: formData.photo }} style={styles.previewImage} />
+                    ) : null}
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Paramètres</Text>
-                    <FormField
-                        label="Nombre d\'électeurs inscrits"
-                        value={formData.nombreElecteursInscrits?.toString() || '0'}
-                        onChangeText={(value) => updateFormData('nombreElecteursInscrits', parseInt(value) || 0)}
-                        keyboardType="numeric" icon="people-outline"
+                    <Text style={styles.sectionTitle}>Électeurs Autorisés</Text>
+                    <MultiSelectField
+                        label="Électeurs"
+                        selectedValues={formData.electeursAutorises || []}
+                        options={electeurOptions}
+                        onSelectionChange={(values) => updateFormData('electeursAutorises', values)}
+                        required
+                        error={errors.electeursAutorises}
+                        icon="people-outline"
                     />
-                    <View style={styles.switchRow}>
-                        <Ionicons name="eye-outline" size={24} color="#666" />
-                        <Text style={styles.switchLabel}>Résultats visibles par les électeurs</Text>
-                        <Switch
-                            value={formData.resultatsVisibles}
-                            onValueChange={(value) => updateFormData('resultatsVisibles', value)}
-                        />
-                    </View>
-                    <View style={styles.switchRow}>
-                        <Ionicons name="repeat-outline" size={24} color="#666" />
-                        <Text style={styles.switchLabel}>Autoriser les votes multiples</Text>
-                        <Switch
-                            value={formData.autoriserVoteMultiple}
-                            onValueChange={(value) => updateFormData('autoriserVoteMultiple', value)}
-                        />
-                    </View>
-                    {formData.autoriserVoteMultiple && (
-                        <FormField
-                            label="Nombre maximum de votes par électeur"
-                            value={formData.nombreMaxVotesParElecteur?.toString() || '1'}
-                            onChangeText={(value) => updateFormData('nombreMaxVotesParElecteur', parseInt(value) || 1)}
-                            keyboardType="numeric" icon="list-outline"
-                        />
-                    )}
                 </View>
 
                 <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
                     <Text style={styles.submitButtonText}>{isEditMode ? 'Sauvegarder les modifications' : 'Créer l\'élection'}</Text>
                 </TouchableOpacity>
             </ScrollView>
+
+            <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleConfirmDate}
+                onCancel={hideDatePicker}
+            />
         </View>
     );
 }
@@ -188,13 +225,27 @@ const styles = StyleSheet.create({
         backgroundColor: 'white', borderRadius: 12, padding: 20, marginBottom: 16,
     },
     sectionTitle: { fontSize: 18, fontWeight: '600', color: '#000', marginBottom: 20 },
-    switchRow: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E5E7',
-    },
-    switchLabel: { fontSize: 16, color: '#333', flex: 1, marginLeft: 16 },
     submitButton: {
         backgroundColor: '#007AFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginVertical: 24,
     },
     submitButtonText: { fontSize: 16, fontWeight: '600', color: 'white' },
+    imagePicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F8FF',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    imagePickerText: {
+        marginLeft: 8,
+        color: '#007AFF',
+        fontWeight: '500',
+    },
+    previewImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
 });

@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Image } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { mockElections } from '@/mock-data/elections';
-import { FormModal } from '@/components/crud/FormModal';
 import { ConfirmModal } from '@/components/crud/ConfirmModal';
-import { FormField } from '@/components/crud/FormField';
 import { ElectionDTO } from '@/lib/models/ElectionDTO';
 
 // Helper functions
@@ -35,7 +33,7 @@ const formatNumber = (num: number | undefined) => {
     return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1 ');
 };
 
-type ModalType = 'create' | 'edit' | 'delete' | null;
+type ModalType = 'delete' | null;
 
 export default function Election() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -44,12 +42,6 @@ export default function Election() {
     const [elections, setElections] = useState<ElectionDTO[]>(mockElections);
     const [modalType, setModalType] = useState<ModalType>(null);
     const [selectedElection, setSelectedElection] = useState<ElectionDTO | null>(null);
-    const [formData, setFormData] = useState({
-        titre: '',
-        description: '',
-        dateDebut: '',
-        dateFin: '',
-    });
 
     useEffect(() => {
         Animated.parallel([
@@ -66,64 +58,16 @@ export default function Election() {
         ]).start();
     }, [fadeAnim, slideAnim]);
 
-    const resetForm = () => {
-        setFormData({
-            titre: '',
-            description: '',
-            dateDebut: '',
-            dateFin: '',
-        });
-        setSelectedElection(null);
-    };
-
     const openModal = (type: ModalType, election: ElectionDTO | null = null) => {
         setModalType(type);
         if (election) {
             setSelectedElection(election);
-            setFormData({
-                titre: election.titre || '',
-                description: election.description || '',
-                dateDebut: election.dateDebut ? election.dateDebut.split('T')[0] : '',
-                dateFin: election.dateFin ? election.dateFin.split('T')[0] : '',
-            });
-        } else {
-            resetForm();
         }
     };
 
     const closeModal = () => {
         setModalType(null);
-        resetForm();
-    };
-
-    const handleSave = () => {
-        if (!formData.titre || !formData.description || !formData.dateDebut || !formData.dateFin) {
-            Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
-            return;
-        }
-
-        const electionData: Partial<ElectionDTO> = {
-            ...formData,
-            dateDebut: formData.dateDebut + 'T08:00:00Z',
-            dateFin: formData.dateFin + 'T20:00:00Z',
-            dateModification: new Date().toISOString(),
-        };
-
-        if (modalType === 'edit' && selectedElection) {
-            setElections(prev => prev.map(e =>
-                e.externalIdElection === selectedElection.externalIdElection ? { ...e, ...electionData } : e
-            ));
-        } else {
-            const newElection: ElectionDTO = {
-                ...electionData,
-                externalIdElection: Date.now().toString(),
-                statut: ElectionDTO.statut.PLANIFIEE,
-                dateCreation: new Date().toISOString(),
-            };
-            setElections(prev => [...prev, newElection]);
-        }
-
-        closeModal();
+        setSelectedElection(null);
     };
 
     const confirmDelete = () => {
@@ -156,6 +100,8 @@ export default function Election() {
                         transform: [{ translateY: slideAnim }]
                     }
                 ]}>
+                    <Image source={{ uri: election.photo }} style={styles.electionPhoto} />
+                    <View style={styles.cardOverlay} />
                     <View style={styles.cardHeader}>
                         <View style={styles.electionInfo}>
                             <Text style={styles.electionTitle}>{election.titre}</Text>
@@ -171,28 +117,9 @@ export default function Election() {
                         }
                     </View>
 
-                    <View style={styles.electionMeta}>
-                        <View style={styles.metaItem}>
-                            <Ionicons name="calendar" size={16} color="#666" />
-                            <Text style={styles.metaText}>
-                                {formatDate(election.dateDebut)}
-                            </Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                            <Ionicons name="people" size={16} color="#666" />
-                            <Text style={styles.metaText}>
-                                {formatNumber(election.nombreElecteursInscrits)} électeurs inscrits
-                            </Text>
-                        </View>
-                    </View>
-
                     <View style={styles.cardActions}>
-                        <TouchableOpacity style={styles.actionButton} onPress={() => openModal('edit', election)}>
-                            <Ionicons name="pencil" size={16} color="#007AFF" />
-                            <Text style={styles.actionText}>Modifier</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => openModal('delete', election)}>
-                            <Ionicons name="trash" size={16} color="#DC3545" />
+                            <Ionicons name="trash" size={16} color="#FFF" />
                             <Text style={[styles.actionText, styles.deleteText]}>Supprimer</Text>
                         </TouchableOpacity>
                     </View>
@@ -206,7 +133,7 @@ export default function Election() {
             <View style={styles.header}>
                 <Ionicons name="ballot" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Élections</Text>
-                <TouchableOpacity style={styles.addButton} onPress={() => openModal('create')}>
+                <TouchableOpacity style={styles.addButton} onPress={() => router.push('/election-form')}>
                     <Ionicons name="add" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
@@ -248,50 +175,6 @@ export default function Election() {
                     ))}
                 </Animated.View>
             </View>
-
-            <FormModal
-                visible={modalType === 'create' || modalType === 'edit'}
-                title={modalType === 'edit' ? "Modifier l&apos;Élection" : "Nouvelle Élection"}
-                onClose={closeModal}
-                onSave={handleSave}
-                isEdit={modalType === 'edit'}
-                saveDisabled={!formData.titre || !formData.description}
-            >
-                <FormField
-                    label="Titre de l'élection"
-                    value={formData.titre}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, titre: text }))}
-                    placeholder="Ex: Élection Présidentielle 2024"
-                    required
-                    icon="ballot"
-                />
-                <FormField
-                    label="Description"
-                    value={formData.description}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                    placeholder="Description de l'élection"
-                    multiline
-                    numberOfLines={3}
-                    required
-                    icon="document-text"
-                />
-                <FormField
-                    label="Date de début"
-                    value={formData.dateDebut}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateDebut: text }))}
-                    placeholder="YYYY-MM-DD"
-                    required
-                    icon="calendar"
-                />
-                <FormField
-                    label="Date de fin"
-                    value={formData.dateFin}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, dateFin: text }))}
-                    placeholder="YYYY-MM-DD"
-                    required
-                    icon="calendar"
-                />
-            </FormModal>
 
             <ConfirmModal
                 visible={modalType === 'delete'}
@@ -370,35 +253,52 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     electionCard: {
-        backgroundColor: 'white',
+        height: 180,
         borderRadius: 12,
-        padding: 16,
         marginBottom: 16,
+        overflow: 'hidden',
+        justifyContent: 'space-between',
+        backgroundColor: '#000',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 4,
+        padding: 16,
+    },
+    electionPhoto: {
+        ...StyleSheet.absoluteFillObject,
+        width: '100%',
+        height: '100%',
+    },
+    cardOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 12,
     },
     electionInfo: {
         flex: 1,
         marginRight: 12,
     },
     electionTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#000',
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFF',
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10,
         marginBottom: 4,
     },
     electionDescription: {
         fontSize: 14,
-        color: '#666',
+        color: '#FFF',
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10,
         lineHeight: 20,
     },
     statusBadge: {
@@ -411,43 +311,30 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
     },
-    electionMeta: {
-        marginBottom: 16,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    metaText: {
-        fontSize: 14,
-        color: '#666',
-        marginLeft: 8,
-    },
     cardActions: {
         flexDirection: 'row',
         gap: 8,
+        alignSelf: 'flex-end',
     },
     actionButton: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 6,
-        backgroundColor: '#F0F8FF',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
     },
     deleteButton: {
-        backgroundColor: '#FFF5F5',
+        backgroundColor: 'rgba(220, 53, 69, 0.5)',
     },
     actionText: {
         fontSize: 14,
-        color: '#007AFF',
+        color: '#FFF',
         fontWeight: '500',
         marginLeft: 4,
     },
     deleteText: {
-        color: '#DC3545',
+        color: '#FFF',
     },
 });
