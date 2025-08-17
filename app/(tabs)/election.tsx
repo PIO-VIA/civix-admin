@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Image } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Image, ActivityIndicator } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockElections } from '@/mock-data/elections';
 import { ConfirmModal } from '@/components/crud/ConfirmModal';
 import { ElectionDTO } from '@/lib/models/ElectionDTO';
+import { useElections } from '@/hooks/useElections';
 
 // Helper functions
 const formatDate = (dateString: string | undefined) => {
@@ -39,7 +39,7 @@ export default function Election() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
 
-    const [elections, setElections] = useState<ElectionDTO[]>(mockElections);
+    const { elections, loading, supprimerElection } = useElections();
     const [modalType, setModalType] = useState<ModalType>(null);
     const [selectedElection, setSelectedElection] = useState<ElectionDTO | null>(null);
 
@@ -70,9 +70,15 @@ export default function Election() {
         setSelectedElection(null);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (selectedElection) {
-            setElections(prev => prev.filter(e => e.externalIdElection !== selectedElection.externalIdElection));
+            console.log('🗑️ Suppression élection depuis la liste, ID:', selectedElection.externalIdElection);
+            const success = await supprimerElection(selectedElection.externalIdElection || '');
+            if (success) {
+                Alert.alert('Succès', 'Élection supprimée avec succès!');
+            } else {
+                Alert.alert('Erreur', 'Impossible de supprimer l\'élection');
+            }
             closeModal();
         }
     };
@@ -127,6 +133,15 @@ export default function Election() {
             </TouchableOpacity>
         );
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centered]}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement des élections...</Text>
+            </View>
+        );
+    }
 
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -193,6 +208,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F2F2F7',
+    },
+    centered: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         flexDirection: 'row',
@@ -336,5 +355,10 @@ const styles = StyleSheet.create({
     },
     deleteText: {
         color: '#FFF',
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 12,
     },
 });
