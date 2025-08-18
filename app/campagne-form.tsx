@@ -37,10 +37,19 @@ export default function CampagneForm() {
                     setLoading(true);
                     const campagneToEdit = await obtenirCampagne(id);
                     if (campagneToEdit) {
+                        // Gestion flexible des données - soit campagne.campagne soit directement campagne
+                        const campagneInfo = campagneToEdit.campagne || campagneToEdit;
+                        const candidatInfo = campagneToEdit.candidat;
+                        
+                        console.log('📝 Données chargées pour édition:', {
+                            campagne: campagneInfo,
+                            candidat: candidatInfo
+                        });
+                        
                         setFormData({
-                            description: campagneToEdit.description || '',
-                            photo: campagneToEdit.photo || '',
-                            candidatId: campagneToEdit.candidat?.externalIdCandidat,
+                            description: campagneInfo.description || '',
+                            photo: campagneInfo.photo || '',
+                            candidatId: candidatInfo?.externalIdCandidat,
                         });
                     } else {
                         Alert.alert('Erreur', 'Campagne non trouvée.', [{ text: 'OK', onPress: () => router.back() }]);

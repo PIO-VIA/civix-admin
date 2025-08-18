@@ -31,7 +31,18 @@ export default function CandidatForm() {
                     setLoading(true);
                     const candidatToEdit = await obtenirCandidat(id);
                     if (candidatToEdit) {
-                        setFormData(candidatToEdit);
+                        // Gestion flexible des données - soit candidat.candidat soit directement candidat
+                        const candidatInfo = candidatToEdit.candidat || candidatToEdit;
+                        
+                        console.log('📝 Données candidat chargées pour édition:', candidatInfo);
+                        
+                        setFormData({
+                            username: candidatInfo?.username || '',
+                            email: candidatInfo?.email || '',
+                            description: candidatInfo?.description || '',
+                            photo: candidatInfo?.photo || '',
+                            externalIdCandidat: candidatInfo?.externalIdCandidat
+                        });
                     } else {
                         Alert.alert('Erreur', 'Candidat non trouvé.', [{ text: 'OK', onPress: () => router.back() }]);
                     }

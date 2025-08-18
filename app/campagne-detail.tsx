@@ -21,6 +21,7 @@ export default function CampagneDetail() {
             try {
                 setLoading(true);
                 const campagneData = await obtenirCampagne(id);
+                console.log('📊 Données campagne récupérées:', JSON.stringify(campagneData, null, 2));
                 if (campagneData) {
                     setCampagne(campagneData);
                 } else {
@@ -38,23 +39,26 @@ export default function CampagneDetail() {
     }, [id, obtenirCampagne]);
 
     const handleEdit = () => {
-        router.push(`/campagne-form?id=${campagne?.campagne?.externalIdCampagne}`);
+        const campagneInfo = campagne?.campagne || campagne;
+        router.push(`/campagne-form?id=${campagneInfo?.externalIdCampagne}`);
     };
 
     const handleDelete = async () => {
-        if (!campagne?.campagne?.externalIdCampagne) return;
+        const campagneInfo = campagne?.campagne || campagne;
+        if (!campagneInfo?.externalIdCampagne) return;
 
         Alert.alert(
             "Supprimer la campagne",
-            `Êtes-vous sûr de vouloir supprimer la campagne "${campagne?.campagne?.description}" ? Cette action est irréversible.`,
+            `Êtes-vous sûr de vouloir supprimer la campagne "${campagneInfo?.description}" ? Cette action est irréversible.`,
             [
                 { text: 'Annuler', style: 'cancel' },
                 {
                     text: 'Supprimer',
                     style: 'destructive',
                     onPress: async () => {
+                        const campagneInfo = campagne?.campagne || campagne;
                         try {
-                            const success = await supprimerCampagne(campagne.campagne.externalIdCampagne);
+                            const success = await supprimerCampagne(campagneInfo.externalIdCampagne);
                             if (success) {
                                 Alert.alert('Succès', 'Campagne supprimée avec succès', [
                                     { text: 'OK', onPress: () => router.back() }
@@ -82,6 +86,7 @@ export default function CampagneDetail() {
     }
 
     if (!campagne) {
+        console.log('❌ Aucune campagne à afficher');
         return (
             <View style={[styles.container, styles.centered]}>
                 <Ionicons name="alert-circle-outline" size={64} color="#CCC" />
@@ -93,42 +98,56 @@ export default function CampagneDetail() {
         );
     }
 
+    console.log('✅ Affichage de la campagne:', {
+        campagne: campagne?.campagne?.description,
+        candidat: campagne?.candidat?.username,
+        autresCampagnes: campagne?.autresCampagnesCandidat?.length
+    });
+
+    // Gestion flexible des données - soit campagne.campagne soit directement campagne
+    const campagneInfo = campagne.campagne || campagne;
+    const candidatInfo = campagne.candidat;
+    const autresCampagnes = campagne.autresCampagnesCandidat || [];
+    const nombreCampagnes = campagne.nombreCampagnesCandidat || 0;
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color="#007AFF" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>{campagne.campagne?.description}</Text>
+                <Text style={styles.headerTitle} numberOfLines={1}>{campagneInfo?.description || 'Campagne'}</Text>
                 <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
                     <Ionicons name="pencil" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-                <Image source={{ uri: campagne.campagne?.photo }} style={styles.bannerImage} />
+                <Image source={{ uri: campagneInfo?.photo }} style={styles.bannerImage} />
                 <View style={styles.content}>
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Description de la campagne</Text>
-                        <Text style={styles.descriptionText}>{campagne.campagne?.description}</Text>
+                        <Text style={styles.descriptionText}>{campagneInfo?.description}</Text>
                     </View>
 
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Candidat Associé</Text>
                         <TouchableOpacity 
                             style={styles.candidatCard} 
-                            onPress={() => router.push(`/candidat-detail?id=${campagne.candidat?.externalIdCandidat}`)}
+                            onPress={() => router.push(`/candidat-detail?id=${candidatInfo?.externalIdCandidat}`)}
                         >
-                            {campagne.candidat?.photo ? (
-                                <Image source={{ uri: campagne.candidat.photo }} style={styles.candidatAvatar} />
+                            {candidatInfo?.photo ? (
+                                <Image source={{ uri: candidatInfo.photo }} style={styles.candidatAvatar} />
                             ) : (
                                 <Ionicons name="person-circle-outline" size={60} color="#007AFF" />
                             )}
                             <View style={styles.candidatInfo}>
-                                <Text style={styles.candidatName}>{campagne.candidat?.username || 'Candidat inconnu'}</Text>
-                                <Text style={styles.candidatEmail}>{campagne.candidat?.email}</Text>
-                                {campagne.candidat?.description && (
-                                    <Text style={styles.candidatDescription} numberOfLines={2}>{campagne.candidat.description}</Text>
+                                <Text style={styles.candidatName}>{candidatInfo?.username || 'Candidat inconnu'}</Text>
+                                {candidatInfo?.email && (
+                                    <Text style={styles.candidatEmail}>{candidatInfo.email}</Text>
+                                )}
+                                {candidatInfo?.description && (
+                                    <Text style={styles.candidatDescription} numberOfLines={2}>{candidatInfo.description}</Text>
                                 )}
                                 <Text style={styles.candidatLink}>Voir le profil complet</Text>
                             </View>
@@ -136,10 +155,10 @@ export default function CampagneDetail() {
                         </TouchableOpacity>
                     </View>
 
-                    {campagne.autresCampagnesCandidat && campagne.autresCampagnesCandidat.length > 0 && (
+                    {autresCampagnes && autresCampagnes.length > 0 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Autres campagnes du candidat ({campagne.nombreCampagnesCandidat})</Text>
-                            {campagne.autresCampagnesCandidat.slice(0, 3).map((autreCampagne, index) => (
+                            <Text style={styles.sectionTitle}>Autres campagnes du candidat ({nombreCampagnes})</Text>
+                            {autresCampagnes.slice(0, 3).map((autreCampagne, index) => (
                                 <TouchableOpacity 
                                     key={index}
                                     style={styles.autreCampagneCard}
@@ -152,12 +171,12 @@ export default function CampagneDetail() {
                                     <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
                                 </TouchableOpacity>
                             ))}
-                            {campagne.nombreCampagnesCandidat && campagne.nombreCampagnesCandidat > 3 && (
+                            {nombreCampagnes && nombreCampagnes > 3 && (
                                 <TouchableOpacity 
                                     style={styles.voirPlusButton}
-                                    onPress={() => router.push(`/candidat-detail?id=${campagne.candidat?.externalIdCandidat}`)}
+                                    onPress={() => router.push(`/candidat-detail?id=${candidatInfo?.externalIdCandidat}`)}
                                 >
-                                    <Text style={styles.voirPlusText}>Voir toutes les campagnes ({campagne.nombreCampagnesCandidat})</Text>
+                                    <Text style={styles.voirPlusText}>Voir toutes les campagnes ({nombreCampagnes})</Text>
                                     <Ionicons name="arrow-forward" size={16} color="#007AFF" />
                                 </TouchableOpacity>
                             )}
