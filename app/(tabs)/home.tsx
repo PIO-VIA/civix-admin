@@ -1,13 +1,17 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { mockDashboardAdmin } from '@/mock-data';
+import { router } from 'expo-router';
 import { AlerteDTO } from '@/lib/models';
-import { mockElections } from '@/mock-data/elections';
+import { useTableauDeBord } from '@/hooks/useTableauDeBord';
+import { useElections } from '@/hooks/useElections';
 
 export default function Home() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
+
+    const { dashboardData, loading: dashboardLoading, error: dashboardError } = useTableauDeBord();
+    const { elections, loading: electionsLoading } = useElections();
 
     useEffect(() => {
         Animated.parallel([
@@ -24,7 +28,13 @@ export default function Home() {
         ]).start();
     }, [fadeAnim, slideAnim]);
 
-    const { statistiquesAdmin, alertes, actionsRecentes } = mockDashboardAdmin;
+    useEffect(() => {
+        if (dashboardError) {
+            Alert.alert("Erreur", dashboardError);
+        }
+    }, [dashboardError]);
+
+    const { statistiquesAdmin, alertes, actionsRecentes } = dashboardData || {};
 
     const formatNumber = (num: number | undefined) => {
         if (num === undefined) return 'N/A';
@@ -73,6 +83,15 @@ export default function Home() {
         </Animated.View>
     );
 
+    if (dashboardLoading || electionsLoading) {
+        return (
+            <View style={[styles.container, styles.loadingContainer]}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement du tableau de bord...</Text>
+            </View>
+        );
+    }
+
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
@@ -95,8 +114,8 @@ export default function Home() {
                 <View style={styles.statsContainer}>
                     <StatCard
                         title="Élections"
-                        value={mockElections.length}
-                        subtitle={`${mockElections.filter(e => e.statut === 'EN_COURS').length} actives`}
+                        value={elections.length}
+                        subtitle={`${elections.filter(e => e.statut === 'EN_COURS').length} actives`}
                         icon="ballot"
                         color="#007AFF"
                     />
@@ -182,15 +201,24 @@ export default function Home() {
                         <Text style={styles.sectionTitle}>Actions Rapides</Text>
                     </View>
                     <View style={styles.quickActions}>
-                        <TouchableOpacity style={styles.actionButton}>
+                        <TouchableOpacity 
+                            style={styles.actionButton}
+                            onPress={() => router.push('/election-form')}
+                        >
                             <Ionicons name="add-circle" size={24} color="#007AFF" />
                             <Text style={styles.actionText}>Nouvelle Élection</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton}>
+                        <TouchableOpacity 
+                            style={styles.actionButton}
+                            onPress={() => router.push('/candidat-form')}
+                        >
                             <Ionicons name="person-add" size={24} color="#28A745" />
                             <Text style={styles.actionText}>Ajouter Candidat</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton}>
+                        <TouchableOpacity 
+                            style={styles.actionButton}
+                            onPress={() => router.push('/election')}
+                        >
                             <Ionicons name="bar-chart" size={24} color="#FF6B6B" />
                             <Text style={styles.actionText}>Voir Résultats</Text>
                         </TouchableOpacity>
@@ -383,5 +411,17 @@ const styles = StyleSheet.create({
         marginTop: 4,
         textAlign: 'center',
         fontWeight: '500',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F2F2F7',
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 16,
+        textAlign: 'center',
     },
 });

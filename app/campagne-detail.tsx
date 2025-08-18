@@ -38,15 +38,15 @@ export default function CampagneDetail() {
     }, [id, obtenirCampagne]);
 
     const handleEdit = () => {
-        router.push(`/campagne-form?id=${campagne?.externalIdCampagne}`);
+        router.push(`/campagne-form?id=${campagne?.campagne?.externalIdCampagne}`);
     };
 
     const handleDelete = async () => {
-        if (!campagne?.externalIdCampagne) return;
+        if (!campagne?.campagne?.externalIdCampagne) return;
 
         Alert.alert(
             "Supprimer la campagne",
-            `Êtes-vous sûr de vouloir supprimer la campagne "${campagne?.description}" ? Cette action est irréversible.`,
+            `Êtes-vous sûr de vouloir supprimer la campagne "${campagne?.campagne?.description}" ? Cette action est irréversible.`,
             [
                 { text: 'Annuler', style: 'cancel' },
                 {
@@ -54,7 +54,7 @@ export default function CampagneDetail() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const success = await supprimerCampagne(campagne.externalIdCampagne);
+                            const success = await supprimerCampagne(campagne.campagne.externalIdCampagne);
                             if (success) {
                                 Alert.alert('Succès', 'Campagne supprimée avec succès', [
                                     { text: 'OK', onPress: () => router.back() }
@@ -99,18 +99,18 @@ export default function CampagneDetail() {
                 <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color="#007AFF" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>{campagne.description}</Text>
+                <Text style={styles.headerTitle} numberOfLines={1}>{campagne.campagne?.description}</Text>
                 <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
                     <Ionicons name="pencil" size={24} color="#007AFF" />
                 </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-                <Image source={{ uri: campagne.photo }} style={styles.bannerImage} />
+                <Image source={{ uri: campagne.campagne?.photo }} style={styles.bannerImage} />
                 <View style={styles.content}>
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Description</Text>
-                        <Text style={styles.descriptionText}>{campagne.description}</Text>
+                        <Text style={styles.sectionTitle}>Description de la campagne</Text>
+                        <Text style={styles.descriptionText}>{campagne.campagne?.description}</Text>
                     </View>
 
                     <View style={styles.section}>
@@ -119,14 +119,50 @@ export default function CampagneDetail() {
                             style={styles.candidatCard} 
                             onPress={() => router.push(`/candidat-detail?id=${campagne.candidat?.externalIdCandidat}`)}
                         >
-                            <Ionicons name="person-circle-outline" size={40} color="#007AFF" />
+                            {campagne.candidat?.photo ? (
+                                <Image source={{ uri: campagne.candidat.photo }} style={styles.candidatAvatar} />
+                            ) : (
+                                <Ionicons name="person-circle-outline" size={60} color="#007AFF" />
+                            )}
                             <View style={styles.candidatInfo}>
                                 <Text style={styles.candidatName}>{campagne.candidat?.username || 'Candidat inconnu'}</Text>
-                                <Text style={styles.candidatLink}>Voir le profil</Text>
+                                <Text style={styles.candidatEmail}>{campagne.candidat?.email}</Text>
+                                {campagne.candidat?.description && (
+                                    <Text style={styles.candidatDescription} numberOfLines={2}>{campagne.candidat.description}</Text>
+                                )}
+                                <Text style={styles.candidatLink}>Voir le profil complet</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={24} color="#C7C7CC" />
                         </TouchableOpacity>
                     </View>
+
+                    {campagne.autresCampagnesCandidat && campagne.autresCampagnesCandidat.length > 0 && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Autres campagnes du candidat ({campagne.nombreCampagnesCandidat})</Text>
+                            {campagne.autresCampagnesCandidat.slice(0, 3).map((autreCampagne, index) => (
+                                <TouchableOpacity 
+                                    key={index}
+                                    style={styles.autreCampagneCard}
+                                    onPress={() => router.push(`/campagne-detail?id=${autreCampagne.externalIdCampagne}`)}
+                                >
+                                    <Image source={{ uri: autreCampagne.photo }} style={styles.autreCampagneImage} />
+                                    <View style={styles.autreCampagneInfo}>
+                                        <Text style={styles.autreCampagneTitle} numberOfLines={2}>{autreCampagne.description}</Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                                </TouchableOpacity>
+                            ))}
+                            {campagne.nombreCampagnesCandidat && campagne.nombreCampagnesCandidat > 3 && (
+                                <TouchableOpacity 
+                                    style={styles.voirPlusButton}
+                                    onPress={() => router.push(`/candidat-detail?id=${campagne.candidat?.externalIdCandidat}`)}
+                                >
+                                    <Text style={styles.voirPlusText}>Voir toutes les campagnes ({campagne.nombreCampagnesCandidat})</Text>
+                                    <Ionicons name="arrow-forward" size={16} color="#007AFF" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    )}
 
                     <View style={styles.dangerZone}>
                         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
@@ -165,7 +201,15 @@ const styles = StyleSheet.create({
     },
     candidatInfo: { flex: 1, marginLeft: 16 },
     candidatName: { fontSize: 18, fontWeight: 'bold', color: '#000' },
-    candidatLink: { fontSize: 14, color: '#007AFF', marginTop: 4 },
+    candidatEmail: { fontSize: 14, color: '#666', marginTop: 2 },
+    candidatDescription: { fontSize: 14, color: '#333', marginTop: 4, lineHeight: 18 },
+    candidatLink: { fontSize: 14, color: '#007AFF', marginTop: 6 },
+    candidatAvatar: { 
+        width: 60, 
+        height: 60, 
+        borderRadius: 30, 
+        backgroundColor: '#f0f0f0' 
+    },
     dangerZone: { marginTop: 16, marginBottom: 40 },
     deleteButton: {
         backgroundColor: '#FFF5F5', borderRadius: 12, padding: 16,
@@ -194,5 +238,46 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
+    },
+    autreCampagneCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#E5E5E7',
+    },
+    autreCampagneImage: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: '#f0f0f0',
+    },
+    autreCampagneInfo: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    autreCampagneTitle: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#000',
+        lineHeight: 18,
+    },
+    voirPlusButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F8F9FA',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 8,
+    },
+    voirPlusText: {
+        fontSize: 14,
+        color: '#007AFF',
+        fontWeight: '500',
+        marginRight: 4,
     },
 });
