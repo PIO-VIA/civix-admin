@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface FormFieldProps {
@@ -150,29 +150,35 @@ export const SelectField: React.FC<SelectFieldProps> = ({
       
       {isOpen && (
         <View style={styles.optionsContainer}>
-          {options.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.option,
-                option.value === value && styles.optionSelected
-              ]}
-              onPress={() => {
-                onSelect(option.value);
-                setIsOpen(false);
-              }}
-            >
-              <Text style={[
-                styles.optionText,
-                option.value === value && styles.optionTextSelected
-              ]}>
-                {option.label}
-              </Text>
-              {option.value === value && (
-                <Ionicons name="checkmark" size={16} color="#007AFF" />
-              )}
-            </TouchableOpacity>
-          ))}
+          <ScrollView 
+            style={styles.scrollableOptions}
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={true}
+          >
+            {options.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.option,
+                  option.value === value && styles.optionSelected
+                ]}
+                onPress={() => {
+                  onSelect(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                <Text style={[
+                  styles.optionText,
+                  option.value === value && styles.optionTextSelected
+                ]}>
+                  {option.label}
+                </Text>
+                {option.value === value && (
+                  <Ionicons name="checkmark" size={16} color="#007AFF" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
       
@@ -265,29 +271,35 @@ interface MultiSelectFieldProps {
                 <Text style={styles.multiSelectActionText}>Tout désélectionner</Text>
               </TouchableOpacity>
             </View>
-            {options.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.option,
-                  selectedValues.includes(option.value) && styles.optionSelected
-                ]}
-                onPress={() => toggleOption(option.value)}
-              >
-                <Ionicons
-                  name={selectedValues.includes(option.value) ? "checkbox" : "square-outline"}
-                  size={20}
-                  color={selectedValues.includes(option.value) ? "#007AFF" : "#666"}
-                  style={styles.checkboxIcon}
-                />
-                <Text style={[
-                  styles.optionText,
-                  selectedValues.includes(option.value) && styles.optionTextSelected
-                ]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView 
+              style={styles.scrollableOptions}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+            >
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.option,
+                    selectedValues.includes(option.value) && styles.optionSelected
+                  ]}
+                  onPress={() => toggleOption(option.value)}
+                >
+                  <Ionicons
+                    name={selectedValues.includes(option.value) ? "checkbox" : "square-outline"}
+                    size={20}
+                    color={selectedValues.includes(option.value) ? "#007AFF" : "#666"}
+                    style={styles.checkboxIcon}
+                  />
+                  <Text style={[
+                    styles.optionText,
+                    selectedValues.includes(option.value) && styles.optionTextSelected
+                  ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
 
@@ -359,6 +371,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 4,
     backgroundColor: 'white',
+    maxHeight: 250,
+  },
+  scrollableOptions: {
     maxHeight: 200,
   },
   option: {

@@ -8,6 +8,7 @@ import { CreateElectionRequest } from '@/lib/models/CreateElectionRequest';
 import { UpdateElectionRequest } from '@/lib/models/UpdateElectionRequest';
 import { useElections } from '@/hooks/useElections';
 import { useElecteurs } from '@/hooks/useElecteurs';
+import { useCandidats } from '@/hooks/useCandidats';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
@@ -22,6 +23,7 @@ export default function ElectionForm() {
         dateFin: '',
         photo: '',
         electeursAutorises: [],
+        candidatsParticipants: [],
         statut: ElectionDTO.statut.PLANIFIEE,
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -31,16 +33,23 @@ export default function ElectionForm() {
 
     const { obtenirElection, creerElection, modifierElection } = useElections();
     const { electeurs, loading: electeursLoading } = useElecteurs();
+    const { candidats, loading: candidatsLoading } = useCandidats();
 
     const electeurOptions = electeurs.map(e => ({
         label: e.username || 'Sans nom',
         value: e.externalIdElecteur || '',
     }));
 
-    const statutOptions = Object.values(ElectionDTO.statut).map(s => ({
-        label: s,
-        value: s,
+    const candidatOptions = candidats.map(c => ({
+        label: c.username || c.email || 'Sans nom',
+        value: c.externalIdCandidat || '',
     }));
+
+    // Debug: voir les candidats chargés
+    React.useEffect(() => {
+        console.log('🔍 Candidats chargés:', candidats.length, candidats);
+    }, [candidats]);
+
 
     useEffect(() => {
         if (isEditMode && id && typeof id === 'string') {
@@ -53,6 +62,7 @@ export default function ElectionForm() {
                             ...electionToEdit,
                             dateDebut: electionToEdit.dateDebut ? electionToEdit.dateDebut.split('T')[0] : '',
                             dateFin: electionToEdit.dateFin ? electionToEdit.dateFin.split('T')[0] : '',
+                            candidatsParticipants: electionToEdit.candidatsParticipants || [],
                         });
                     } else {
                         Alert.alert('Erreur', 'Élection non trouvée.', [{ text: 'OK', onPress: () => router.back() }]);
@@ -106,6 +116,7 @@ export default function ElectionForm() {
         if (!formData.dateDebut?.trim()) newErrors.dateDebut = 'La date de début est requise';
         if (!formData.dateFin?.trim()) newErrors.dateFin = 'La date de fin est requise';
         if (!formData.electeursAutorises?.length) newErrors.electeursAutorises = 'Veuillez sélectionner au moins un électeur';
+        // if (!formData.candidatsParticipants?.length) newErrors.candidatsParticipants = 'Veuillez sélectionner au moins un candidat';
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -128,6 +139,7 @@ export default function ElectionForm() {
                     dateFin: formData.dateFin + 'T20:00:00Z',
                     photo: formData.photo || '',
                     electeursAutorises: formData.electeursAutorises || [],
+                    candidatsParticipants: formData.candidatsParticipants || [],
                     statut: formData.statut || ElectionDTO.statut.PLANIFIEE,
                 };
 
@@ -143,18 +155,22 @@ export default function ElectionForm() {
                     Alert.alert('Erreur', 'Impossible de modifier l\'élection');
                 }
             } else {
-                // Mode création
+                // Mode création - Test sans photo locale
                 const createData: CreateElectionRequest = {
                     titre: formData.titre || '',
                     description: formData.description || '',
                     dateDebut: formData.dateDebut + 'T08:00:00Z',
                     dateFin: formData.dateFin + 'T20:00:00Z',
-                    photo: formData.photo || '',
+                    // Test sans photo si c'est un fichier local
+                    photo: (formData.photo && !formData.photo.startsWith('file://')) ? formData.photo : '',
                     electeursAutorises: formData.electeursAutorises || [],
-                    statut: formData.statut || ElectionDTO.statut.PLANIFIEE,
+                    // Temporairement commenté pour tester
+                    // ...(formData.candidatsParticipants && formData.candidatsParticipants.length > 0 && {
+                    //     candidatsParticipants: formData.candidatsParticipants
+                    // }),
                 };
 
-                console.log('➕ Création élection, données:', createData);
+                console.log('➕ Création élection, données complètes:', JSON.stringify(createData, null, 2));
                 const result = await creerElection(createData);
                 if (result) {
                     Alert.alert(
@@ -207,7 +223,13 @@ export default function ElectionForm() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                style={styles.content} 
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.scrollContent}
+                bounces={true}
+            >
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{"Informations sur l'Élection"}</Text>
                     <FormField
@@ -215,7 +237,7 @@ export default function ElectionForm() {
                         value={formData.titre || ''}
                         onChangeText={(value) => updateFormData('titre', value)}
                         placeholder="Ex: Élection Présidentielle 2024"
-                        required error={errors.titre} icon="ballot-outline"
+                        required error={errors.titre} icon="document-outline"
                     />
                     <FormField
                         label="Description"
@@ -239,14 +261,6 @@ export default function ElectionForm() {
                         placeholder="YYYY-MM-DD"
                         required error={errors.dateFin} icon="calendar-outline"
                         editable={false}
-                    />
-                    <SelectField
-                        label="Statut"
-                        value={formData.statut || ''}
-                        options={statutOptions}
-                        onSelect={(value) => updateFormData('statut', value)}
-                        required
-                        icon="flag-outline"
                     />
                     <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
                         <Ionicons name="camera" size={24} color="#007AFF" />
@@ -273,6 +287,26 @@ export default function ElectionForm() {
                             required
                             error={errors.electeursAutorises}
                             icon="people-outline"
+                        />
+                    )}
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Candidats Participants</Text>
+                    {candidatsLoading ? (
+                        <View style={styles.loadingElecteurs}>
+                            <ActivityIndicator size="small" color="#007AFF" />
+                            <Text style={styles.loadingElecteursText}>Chargement des candidats...</Text>
+                        </View>
+                    ) : (
+                        <MultiSelectField
+                            label="Candidats (optionnel pour test)"
+                            selectedValues={formData.candidatsParticipants || []}
+                            options={candidatOptions}
+                            onSelectionChange={(values) => updateFormData('candidatsParticipants', values)}
+                            required={false}
+                            error={errors.candidatsParticipants}
+                            icon="person-outline"
                         />
                     )}
                 </View>
@@ -319,7 +353,12 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 18, fontWeight: '600', color: '#000', flex: 1, textAlign: 'center', marginHorizontal: 8 },
     saveButton: { padding: 8, marginRight: -8 },
     saveButtonDisabled: { opacity: 0.5 },
-    content: { flex: 1, padding: 16 },
+    content: { flex: 1 },
+    scrollContent: { 
+        flexGrow: 1, 
+        padding: 16,
+        paddingBottom: 100,
+    },
     section: {
         backgroundColor: 'white', borderRadius: 12, padding: 20, marginBottom: 16,
     },
