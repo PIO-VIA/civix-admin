@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image, Platform, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -23,7 +24,7 @@ export default function ElectionForm() {
         dateFin: '',
         photo: '',
         electeursAutorises: [],
-        candidatsParticipants: [],
+        candidatsParticipants: [], // ✅ Initialisé comme requis
         statut: ElectionDTO.statut.PLANIFIEE,
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -49,7 +50,6 @@ export default function ElectionForm() {
     React.useEffect(() => {
         console.log('🔍 Candidats chargés:', candidats.length, candidats);
     }, [candidats]);
-
 
     useEffect(() => {
         if (isEditMode && id && typeof id === 'string') {
@@ -111,12 +111,28 @@ export default function ElectionForm() {
 
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
+        
+        // Validations existantes
         if (!formData.titre?.trim()) newErrors.titre = 'Le titre est requis';
         if (!formData.description?.trim()) newErrors.description = 'La description est requise';
         if (!formData.dateDebut?.trim()) newErrors.dateDebut = 'La date de début est requise';
         if (!formData.dateFin?.trim()) newErrors.dateFin = 'La date de fin est requise';
         if (!formData.electeursAutorises?.length) newErrors.electeursAutorises = 'Veuillez sélectionner au moins un électeur';
-        // if (!formData.candidatsParticipants?.length) newErrors.candidatsParticipants = 'Veuillez sélectionner au moins un candidat';
+        
+        // ✅ NOUVELLE VALIDATION - Candidats obligatoires
+        if (!formData.candidatsParticipants?.length) {
+            newErrors.candidatsParticipants = 'Veuillez sélectionner au moins un candidat';
+        }
+
+        // ✅ Validation des dates
+        if (formData.dateDebut && formData.dateFin) {
+            const dateDebut = new Date(formData.dateDebut);
+            const dateFin = new Date(formData.dateFin);
+            if (dateFin <= dateDebut) {
+                newErrors.dateFin = 'La date de fin doit être postérieure à la date de début';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -139,7 +155,7 @@ export default function ElectionForm() {
                     dateFin: formData.dateFin + 'T20:00:00Z',
                     photo: formData.photo || '',
                     electeursAutorises: formData.electeursAutorises || [],
-                    candidatsParticipants: formData.candidatsParticipants || [],
+                    candidatsParticipants: formData.candidatsParticipants || [], // ✅ Inclus
                     statut: formData.statut || ElectionDTO.statut.PLANIFIEE,
                 };
 
@@ -155,19 +171,15 @@ export default function ElectionForm() {
                     Alert.alert('Erreur', 'Impossible de modifier l\'élection');
                 }
             } else {
-                // Mode création - Test sans photo locale
+                // Mode création
                 const createData: CreateElectionRequest = {
                     titre: formData.titre || '',
                     description: formData.description || '',
                     dateDebut: formData.dateDebut + 'T08:00:00Z',
                     dateFin: formData.dateFin + 'T20:00:00Z',
-                    // Test sans photo si c'est un fichier local
-                    photo: (formData.photo && !formData.photo.startsWith('file://')) ? formData.photo : '',
+                    photo: formData.photo || 'https://via.placeholder.com/300x200', // ✅ Valeur par défaut
                     electeursAutorises: formData.electeursAutorises || [],
-                    // Temporairement commenté pour tester
-                    // ...(formData.candidatsParticipants && formData.candidatsParticipants.length > 0 && {
-                    //     candidatsParticipants: formData.candidatsParticipants
-                    // }),
+                    candidatsParticipants: formData.candidatsParticipants || [], // ✅ MAINTENANT INCLUS
                 };
 
                 console.log('➕ Création élection, données complètes:', JSON.stringify(createData, null, 2));
@@ -264,7 +276,7 @@ export default function ElectionForm() {
                     />
                     <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
                         <Ionicons name="camera" size={24} color="#007AFF" />
-                        <Text style={styles.imagePickerText}>Choisir une photo</Text>
+                        <Text style={styles.imagePickerText}>Choisir une photo (optionnel)</Text>
                     </TouchableOpacity>
                     {formData.photo ? (
                         <Image source={{ uri: formData.photo }} style={styles.previewImage} />
@@ -298,13 +310,29 @@ export default function ElectionForm() {
                             <ActivityIndicator size="small" color="#007AFF" />
                             <Text style={styles.loadingElecteursText}>Chargement des candidats...</Text>
                         </View>
+                    ) : candidatOptions.length === 0 ? (
+                        // ✅ GESTION DU CAS SANS CANDIDATS
+                        <View style={styles.noCandidatesContainer}>
+                            <Ionicons name="person-outline" size={48} color="#999" />
+                            <Text style={styles.noCandidatesText}>Aucun candidat disponible</Text>
+                            <Text style={styles.noCandidatesSubtext}>
+                                Vous devez d'abord créer des candidats avant de pouvoir créer une élection.
+                            </Text>
+                            <TouchableOpacity 
+                                style={styles.createCandidateButton}
+                                onPress={() => router.push('/candidat-form')}
+                            >
+                                <Ionicons name="add" size={20} color="#007AFF" />
+                                <Text style={styles.createCandidateText}>Créer un candidat</Text>
+                            </TouchableOpacity>
+                        </View>
                     ) : (
                         <MultiSelectField
-                            label="Candidats (optionnel pour test)"
+                            label="Candidats"
                             selectedValues={formData.candidatsParticipants || []}
                             options={candidatOptions}
                             onSelectionChange={(values) => updateFormData('candidatsParticipants', values)}
-                            required={false}
+                            required // ✅ MAINTENANT OBLIGATOIRE
                             error={errors.candidatsParticipants}
                             icon="person-outline"
                         />
@@ -312,9 +340,12 @@ export default function ElectionForm() {
                 </View>
 
                 <TouchableOpacity 
-                    style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+                    style={[
+                        styles.submitButton, 
+                        (loading || candidatOptions.length === 0) && styles.submitButtonDisabled
+                    ]} 
                     onPress={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || candidatOptions.length === 0}
                 >
                     {loading ? (
                         <View style={styles.submitButtonContent}>
@@ -323,6 +354,10 @@ export default function ElectionForm() {
                                 {isEditMode ? 'Sauvegarde...' : 'Création...'}
                             </Text>
                         </View>
+                    ) : candidatOptions.length === 0 ? (
+                        <Text style={styles.submitButtonText}>
+                            Créez d'abord des candidats
+                        </Text>
                     ) : (
                         <Text style={styles.submitButtonText}>
                             {isEditMode ? 'Sauvegarder les modifications' : 'Créer l\'élection'}
@@ -408,6 +443,46 @@ const styles = StyleSheet.create({
     loadingElecteursText: {
         fontSize: 14,
         color: '#666',
+        marginLeft: 8,
+    },
+    // ✅ NOUVEAUX STYLES pour la gestion des candidats manquants
+    noCandidatesContainer: {
+        alignItems: 'center',
+        padding: 32,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#E5E5E7',
+        borderStyle: 'dashed',
+    },
+    noCandidatesText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#666',
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    noCandidatesSubtext: {
+        fontSize: 14,
+        color: '#999',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 20,
+    },
+    createCandidateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F8FF',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#007AFF',
+    },
+    createCandidateText: {
+        fontSize: 16,
+        color: '#007AFF',
+        fontWeight: '600',
         marginLeft: 8,
     },
 });

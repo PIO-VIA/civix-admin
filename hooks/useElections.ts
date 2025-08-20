@@ -1,3 +1,4 @@
+/* Correction du hook useElections - hooks/useElections.ts */
 import { useState, useEffect, useCallback } from 'react';
 import { ElectionsService } from '@/lib/services/ElectionsService';
 import { ElectionDTO } from '@/lib/models/ElectionDTO';
@@ -22,7 +23,15 @@ export const useElections = (): UseElectionsResult => {
   const [elections, setElections] = useState<ElectionDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAuth();
+  const { token } = useAuth(); // ✅ AJOUTÉ
+
+  // ✅ AJOUTÉ - Fonction pour obtenir le header d'authentification
+  const getAuthHeader = useCallback(() => {
+    if (!token) {
+      throw new Error('Token d\'authentification manquant');
+    }
+    return `Bearer ${token}`;
+  }, [token]);
 
   const refreshElections = useCallback(async () => {
     try {
@@ -48,7 +57,8 @@ export const useElections = (): UseElectionsResult => {
     
     try {
       setError(null);
-      const nouvelleElection = await ElectionsService.creerElection(election);
+      const authHeader = getAuthHeader(); // ✅ AJOUTÉ
+      const nouvelleElection = await ElectionsService.creerElection(authHeader, election); // ✅ MODIFIÉ
       console.log('✅ Élection créée:', nouvelleElection);
       
       // Rafraîchir la liste après création
@@ -60,14 +70,15 @@ export const useElections = (): UseElectionsResult => {
       setError('Erreur lors de la création de l\'élection');
       return null;
     }
-  }, [refreshElections]);
+  }, [refreshElections, getAuthHeader]); // ✅ AJOUTÉ getAuthHeader
 
   const modifierElection = useCallback(async (id: string, election: UpdateElectionRequest): Promise<ElectionDTO | null> => {
     console.log('🔄 Modification élection, données:', election);
     
     try {
       setError(null);
-      const electionModifiee = await ElectionsService.modifierElection(id, election);
+      const authHeader = getAuthHeader(); // ✅ AJOUTÉ
+      const electionModifiee = await ElectionsService.modifierElection(authHeader, id, election); // ✅ MODIFIÉ
       console.log('✅ Élection modifiée:', electionModifiee);
       
       // Mettre à jour la liste locale
@@ -81,14 +92,15 @@ export const useElections = (): UseElectionsResult => {
       setError('Erreur lors de la modification de l\'élection');
       return null;
     }
-  }, []);
+  }, [getAuthHeader]); // ✅ AJOUTÉ getAuthHeader
 
   const supprimerElection = useCallback(async (id: string): Promise<boolean> => {
     console.log('🗑️ Suppression élection, ID:', id);
     
     try {
       setError(null);
-      await ElectionsService.supprimerElection(id);
+      const authHeader = getAuthHeader(); // ✅ AJOUTÉ
+      await ElectionsService.supprimerElection(authHeader, id); // ✅ MODIFIÉ
       console.log('✅ Élection supprimée');
       
       // Retirer de la liste locale
@@ -100,7 +112,7 @@ export const useElections = (): UseElectionsResult => {
       setError('Erreur lors de la suppression de l\'élection');
       return false;
     }
-  }, []);
+  }, [getAuthHeader]); // ✅ AJOUTÉ getAuthHeader
 
   const obtenirElection = useCallback(async (id: string): Promise<ElectionDTO | null> => {
     console.log('🔍 Récupération élection, ID:', id);
