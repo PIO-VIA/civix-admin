@@ -4,7 +4,6 @@ export * from './campagnes';
 export * from './candidats';
 export * from './electeurs';
 export * from './dashboard';
-export * from './healthchecks';
 
 // Types communs
 export interface BaseEntity {

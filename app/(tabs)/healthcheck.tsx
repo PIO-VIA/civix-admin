@@ -1,27 +1,37 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { mockHealthCheck } from '@/mock-data';
 import { HealthStatusDTO } from '@/lib/models';
+import { useHealthChecks } from '@/hooks/useHealthChecks';
 
 export default function HealthCheckScreen() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
 
+    const { healthCheckData, loading, error, refreshHealthCheck } = useHealthChecks();
+
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: 0,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-        ]).start();
-    }, [fadeAnim, slideAnim]);
+        if (healthCheckData) {
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 800,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(slideAnim, {
+                    toValue: 0,
+                    duration: 600,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
+    }, [healthCheckData, fadeAnim, slideAnim]);
+
+    useEffect(() => {
+        if (error) {
+            Alert.alert('Erreur', error);
+        }
+    }, [error]);
 
     const getStatusColor = (healthy?: boolean) => {
         if (healthy === undefined) return '#6C757D';
@@ -108,19 +118,40 @@ export default function HealthCheckScreen() {
         );
     };
 
-    const services = Object.entries(mockHealthCheck.services || {});
+    if (loading && !healthCheckData) {
+        return (
+            <View style={[styles.container, styles.centered]}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement du Health Check...</Text>
+            </View>
+        );
+    }
+
+    if (!healthCheckData) {
+        return (
+            <View style={[styles.container, styles.centered]}>
+                <Ionicons name="cloud-offline-outline" size={48} color="#666" />
+                <Text style={styles.errorTitle}>Impossible de charger les données</Text>
+                <Text style={styles.errorSubtitle}>Vérifiez votre connexion ou réessayez plus tard.</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={refreshHealthCheck}>
+                    <Text style={styles.retryButtonText}>Réessayer</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const services = Object.entries(healthCheckData.services || {});
     const healthyServices = services.filter(([, service]) => service.healthy).length;
     const unhealthyServices = services.length - healthyServices;
-    const averageResponseTime = services.reduce((acc, [, service]) => acc + (service.responseTime || 0), 0) / services.length;
-
+    const averageResponseTime = services.reduce((acc, [, service]) => acc + (service.responseTime || 0), 0) / (services.length || 1);
 
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
                 <Ionicons name="pulse" size={32} color="#007AFF" />
                 <Text style={styles.headerTitle}>Health Checks</Text>
-                <TouchableOpacity style={styles.refreshAllButton}>
-                    <Ionicons name="refresh" size={24} color="#007AFF" />
+                <TouchableOpacity style={styles.refreshAllButton} onPress={refreshHealthCheck} disabled={loading}>
+                    {loading ? <ActivityIndicator size="small" color="#007AFF" /> : <Ionicons name="refresh" size={24} color="#007AFF" />}
                 </TouchableOpacity>
             </View>
 
@@ -131,21 +162,21 @@ export default function HealthCheckScreen() {
                 ]}>
                     <View style={[
                         styles.systemStatusCard,
-                        { borderLeftColor: getStatusColor(mockHealthCheck.status === 'HEALTHY') }
+                        { borderLeftColor: getStatusColor(healthCheckData.status === 'HEALTHY') }
                     ]}>
                         <View style={styles.systemStatusHeader}>
                             <Ionicons
-                                name={getStatusIcon(mockHealthCheck.status === 'HEALTHY')}
+                                name={getStatusIcon(healthCheckData.status === 'HEALTHY')}
                                 size={32}
-                                color={getStatusColor(mockHealthCheck.status === 'HEALTHY')}
+                                color={getStatusColor(healthCheckData.status === 'HEALTHY')}
                             />
                             <View style={styles.systemStatusInfo}>
-                                <Text style={styles.systemStatusTitle}>{mockHealthCheck.application}</Text>
+                                <Text style={styles.systemStatusTitle}>{healthCheckData.application}</Text>
                                 <Text style={[
                                     styles.systemStatusValue,
-                                    { color: getStatusColor(mockHealthCheck.status === 'HEALTHY') }
+                                    { color: getStatusColor(healthCheckData.status === 'HEALTHY') }
                                 ]}>
-                                    {mockHealthCheck.status}
+                                    {healthCheckData.status}
                                 </Text>
                             </View>
                         </View>
@@ -153,7 +184,7 @@ export default function HealthCheckScreen() {
                             {healthyServices}/{services.length} services opérationnels
                         </Text>
                         <Text style={styles.systemStatusDetails}>
-                            Uptime: {mockHealthCheck.uptime}
+                            Uptime: {healthCheckData.uptime}
                         </Text>
                     </View>
                 </Animated.View>
@@ -205,6 +236,40 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F2F2F7',
+    },
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#666',
+    },
+    errorTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 8,
+    },
+    errorSubtitle: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    retryButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
     },
     header: {
         flexDirection: 'row',
