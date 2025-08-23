@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image, Platform, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,15 +23,15 @@ export default function ElectionForm() {
         dateFin: '',
         photo: '',
         electeursAutorises: [],
-        candidatsParticipants: [], // ✅ Initialisé comme requis
+        candidatsParticipants: [],
         statut: ElectionDTO.statut.PLANIFIEE,
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
     const [datePickerField, setDatePickerField] = useState<keyof Partial<ElectionDTO> | null>(null);
 
-    const { obtenirElection, creerElection, modifierElection } = useElections();
+    const { obtenirElection, creerElection, modifierElection, error: electionHookError, loading: electionHookLoading } = useElections();
     const { electeurs, loading: electeursLoading } = useElecteurs();
     const { candidats, loading: candidatsLoading } = useCandidats();
 
@@ -46,38 +45,31 @@ export default function ElectionForm() {
         value: c.externalIdCandidat || '',
     }));
 
-    // Debug: voir les candidats chargés
-    React.useEffect(() => {
-        console.log('🔍 Candidats chargés:', candidats.length, candidats);
-    }, [candidats]);
+    useEffect(() => {
+        if (electionHookError) {
+            Alert.alert('Erreur', electionHookError);
+        }
+    }, [electionHookError]);
 
     useEffect(() => {
         if (isEditMode && id && typeof id === 'string') {
             const loadElection = async () => {
-                try {
-                    setLoading(true);
-                    const electionToEdit = await obtenirElection(id);
-                    if (electionToEdit) {
-                        setFormData({
-                            ...electionToEdit,
-                            dateDebut: electionToEdit.dateDebut ? electionToEdit.dateDebut.split('T')[0] : '',
-                            dateFin: electionToEdit.dateFin ? electionToEdit.dateFin.split('T')[0] : '',
-                            candidatsParticipants: electionToEdit.candidatsParticipants || [],
-                        });
-                    } else {
-                        Alert.alert('Erreur', 'Élection non trouvée.', [{ text: 'OK', onPress: () => router.back() }]);
-                    }
-                } catch (error) {
-                    console.error('Erreur lors du chargement de l\'élection:', error);
-                    Alert.alert('Erreur', 'Impossible de charger l\'élection.', [{ text: 'OK', onPress: () => router.back() }]);
-                } finally {
-                    setLoading(false);
+                const electionToEdit = await obtenirElection(id);
+                if (electionToEdit) {
+                    setFormData({
+                        ...electionToEdit,
+                        dateDebut: electionToEdit.dateDebut ? electionToEdit.dateDebut.split('T')[0] : '',
+                        dateFin: electionToEdit.dateFin ? electionToEdit.dateFin.split('T')[0] : '',
+                        candidatsParticipants: electionToEdit.candidatsParticipants || [],
+                    });
+                } else {
+                    Alert.alert('Erreur', 'Élection non trouvée.', [{ text: 'OK', onPress: () => router.back() }]);
                 }
             };
             
             loadElection();
         }
-    }, [id, isEditMode, obtenirElection]);
+    }, [id, isEditMode]);
 
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
@@ -112,19 +104,15 @@ export default function ElectionForm() {
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
         
-        // Validations existantes
         if (!formData.titre?.trim()) newErrors.titre = 'Le titre est requis';
         if (!formData.description?.trim()) newErrors.description = 'La description est requise';
         if (!formData.dateDebut?.trim()) newErrors.dateDebut = 'La date de début est requise';
         if (!formData.dateFin?.trim()) newErrors.dateFin = 'La date de fin est requise';
         if (!formData.electeursAutorises?.length) newErrors.electeursAutorises = 'Veuillez sélectionner au moins un électeur';
-        
-        // ✅ NOUVELLE VALIDATION - Candidats obligatoires
         if (!formData.candidatsParticipants?.length) {
             newErrors.candidatsParticipants = 'Veuillez sélectionner au moins un candidat';
         }
 
-        // ✅ Validation des dates
         if (formData.dateDebut && formData.dateFin) {
             const dateDebut = new Date(formData.dateDebut);
             const dateFin = new Date(formData.dateFin);
@@ -143,11 +131,11 @@ export default function ElectionForm() {
             return;
         }
 
-        try {
-            setLoading(true);
+        setIsSubmitting(true);
 
+        let result = null;
+        try {
             if (isEditMode && id && typeof id === 'string') {
-                // Mode modification
                 const updateData: UpdateElectionRequest = {
                     titre: formData.titre || '',
                     description: formData.description || '',
@@ -155,50 +143,36 @@ export default function ElectionForm() {
                     dateFin: formData.dateFin + 'T20:00:00Z',
                     photo: formData.photo || '',
                     electeursAutorises: formData.electeursAutorises || [],
-                    candidatsParticipants: formData.candidatsParticipants || [], // ✅ Inclus
+                    candidatsParticipants: formData.candidatsParticipants || [],
                     statut: formData.statut || ElectionDTO.statut.PLANIFIEE,
                 };
-
-                console.log('🔄 Modification élection, données:', updateData);
-                const result = await modifierElection(id, updateData);
-                if (result) {
-                    Alert.alert(
-                        'Succès',
-                        'Élection modifiée avec succès!',
-                        [{ text: 'OK', onPress: () => router.push('/(tabs)/election') }]
-                    );
-                } else {
-                    Alert.alert('Erreur', 'Impossible de modifier l\'élection');
-                }
+                result = await modifierElection(id, updateData);
             } else {
-                // Mode création
                 const createData: CreateElectionRequest = {
                     titre: formData.titre || '',
                     description: formData.description || '',
                     dateDebut: formData.dateDebut + 'T08:00:00Z',
                     dateFin: formData.dateFin + 'T20:00:00Z',
-                    photo: formData.photo || 'https://via.placeholder.com/300x200', // ✅ Valeur par défaut
+                    photo: formData.photo || 'https://via.placeholder.com/300x200',
                     electeursAutorises: formData.electeursAutorises || [],
-                    candidatsParticipants: formData.candidatsParticipants || [], // ✅ MAINTENANT INCLUS
+                    candidatsParticipants: formData.candidatsParticipants || [],
                 };
-
-                console.log('➕ Création élection, données complètes:', JSON.stringify(createData, null, 2));
-                const result = await creerElection(createData);
-                if (result) {
-                    Alert.alert(
-                        'Succès',
-                        'Élection créée avec succès!',
-                        [{ text: 'OK', onPress: () => router.push('/(tabs)/election') }]
-                    );
-                } else {
-                    Alert.alert('Erreur', 'Impossible de créer l\'élection');
-                }
+                result = await creerElection(createData);
             }
+
+            if (result) {
+                Alert.alert(
+                    'Succès',
+                    `Élection ${isEditMode ? 'modifiée' : 'créée'} avec succès!`, 
+                    [{ text: 'OK', onPress: () => router.push('/(tabs)/election') }]
+                );
+            }
+            // Si result est null, l'alerte d'erreur sera déclenchée par le useEffect
         } catch (error) {
-            console.error('❌ Erreur lors de la soumission:', error);
-            Alert.alert('Erreur', 'Une erreur est survenue lors de la sauvegarde');
+            // Le hook gère déjà l'état d'erreur, mais on log au cas où
+            console.error('❌ Erreur inattendue lors de la soumission:', error);
         } finally {
-            setLoading(false);
+            setIsSubmitting(false);
         }
     };
 
@@ -206,11 +180,11 @@ export default function ElectionForm() {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    if (loading && isEditMode) {
+    if (electionHookLoading && isEditMode && !formData.titre) {
         return (
             <View style={[styles.container, styles.centered]}>
                 <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>Chargement de l'élection...</Text>
+                <Text style={styles.loadingText}>Chargement de l élection...</Text>
             </View>
         );
     }
@@ -221,13 +195,13 @@ export default function ElectionForm() {
                 <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color="#007AFF" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{isEditMode ? 'Modifier l\'Élection' : 'Nouvelle Élection'}</Text>
+                <Text style={styles.headerTitle}>{isEditMode ? 'Modifier l Élection' : 'Nouvelle Élection'}</Text>
                 <TouchableOpacity 
-                    style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
+                    style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]} 
                     onPress={handleSubmit}
-                    disabled={loading}
+                    disabled={isSubmitting}
                 >
-                    {loading ? (
+                    {isSubmitting ? (
                         <ActivityIndicator size="small" color="#007AFF" />
                     ) : (
                         <Ionicons name="checkmark" size={28} color="#007AFF" />
@@ -243,9 +217,9 @@ export default function ElectionForm() {
                 bounces={true}
             >
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{"Informations sur l'Élection"}</Text>
+                    <Text style={styles.sectionTitle}>{"Informations sur l Élection"}</Text>
                     <FormField
-                        label="Titre de l\'élection"
+                        label="Titre de l élection"
                         value={formData.titre || ''}
                         onChangeText={(value) => updateFormData('titre', value)}
                         placeholder="Ex: Élection Présidentielle 2024"
@@ -255,7 +229,7 @@ export default function ElectionForm() {
                         label="Description"
                         value={formData.description || ''}
                         onChangeText={(value) => updateFormData('description', value)}
-                        placeholder="Description de l\'élection"
+                        placeholder="Description de l élection"
                         multiline required error={errors.description} icon="document-text-outline"
                     />
                     <FormField
@@ -311,12 +285,11 @@ export default function ElectionForm() {
                             <Text style={styles.loadingElecteursText}>Chargement des candidats...</Text>
                         </View>
                     ) : candidatOptions.length === 0 ? (
-                        // ✅ GESTION DU CAS SANS CANDIDATS
                         <View style={styles.noCandidatesContainer}>
                             <Ionicons name="person-outline" size={48} color="#999" />
                             <Text style={styles.noCandidatesText}>Aucun candidat disponible</Text>
                             <Text style={styles.noCandidatesSubtext}>
-                                Vous devez d'abord créer des candidats avant de pouvoir créer une élection.
+                                Vous devez d abord créer des candidats avant de pouvoir créer une élection.
                             </Text>
                             <TouchableOpacity 
                                 style={styles.createCandidateButton}
@@ -332,7 +305,7 @@ export default function ElectionForm() {
                             selectedValues={formData.candidatsParticipants || []}
                             options={candidatOptions}
                             onSelectionChange={(values) => updateFormData('candidatsParticipants', values)}
-                            required // ✅ MAINTENANT OBLIGATOIRE
+                            required
                             error={errors.candidatsParticipants}
                             icon="person-outline"
                         />
@@ -342,12 +315,12 @@ export default function ElectionForm() {
                 <TouchableOpacity 
                     style={[
                         styles.submitButton, 
-                        (loading || candidatOptions.length === 0) && styles.submitButtonDisabled
+                        (isSubmitting || candidatOptions.length === 0) && styles.submitButtonDisabled
                     ]} 
                     onPress={handleSubmit}
-                    disabled={loading || candidatOptions.length === 0}
+                    disabled={isSubmitting || candidatOptions.length === 0}
                 >
-                    {loading ? (
+                    {isSubmitting ? (
                         <View style={styles.submitButtonContent}>
                             <ActivityIndicator size="small" color="white" />
                             <Text style={[styles.submitButtonText, { marginLeft: 8 }]}>
@@ -356,11 +329,11 @@ export default function ElectionForm() {
                         </View>
                     ) : candidatOptions.length === 0 ? (
                         <Text style={styles.submitButtonText}>
-                            Créez d'abord des candidats
+                            Créez d abord des candidats
                         </Text>
                     ) : (
                         <Text style={styles.submitButtonText}>
-                            {isEditMode ? 'Sauvegarder les modifications' : 'Créer l\'élection'}
+                            {isEditMode ? 'Sauvegarder les modifications' : 'Créer l élection'}
                         </Text>
                     )}
                 </TouchableOpacity>
@@ -445,7 +418,6 @@ const styles = StyleSheet.create({
         color: '#666',
         marginLeft: 8,
     },
-    // ✅ NOUVEAUX STYLES pour la gestion des candidats manquants
     noCandidatesContainer: {
         alignItems: 'center',
         padding: 32,
