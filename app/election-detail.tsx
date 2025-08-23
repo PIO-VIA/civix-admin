@@ -8,9 +8,11 @@ import { ElectionDTO } from '@/lib/models/ElectionDTO';
 // Helper functions
 const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 const getStatusColor = (status?: ElectionDTO.statut) => {

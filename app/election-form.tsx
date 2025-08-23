@@ -139,8 +139,8 @@ export default function ElectionForm() {
                 const updateData: UpdateElectionRequest = {
                     titre: formData.titre || '',
                     description: formData.description || '',
-                    dateDebut: formData.dateDebut + 'T08:00:00Z',
-                    dateFin: formData.dateFin + 'T20:00:00Z',
+                    dateDebut: formData.dateDebut,
+                    dateFin: formData.dateFin,
                     photo: formData.photo || '',
                     electeursAutorises: formData.electeursAutorises || [],
                     candidatsParticipants: formData.candidatsParticipants || [],
@@ -151,8 +151,8 @@ export default function ElectionForm() {
                 const createData: CreateElectionRequest = {
                     titre: formData.titre || '',
                     description: formData.description || '',
-                    dateDebut: formData.dateDebut + 'T08:00:00Z',
-                    dateFin: formData.dateFin + 'T20:00:00Z',
+                    dateDebut: formData.dateDebut,
+                    dateFin: formData.dateFin,
                     photo: formData.photo || 'https://via.placeholder.com/300x200',
                     electeursAutorises: formData.electeursAutorises || [],
                     candidatsParticipants: formData.candidatsParticipants || [],
