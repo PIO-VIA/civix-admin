@@ -255,6 +255,17 @@ export default function ElectionForm() {
                     {formData.photo ? (
                         <Image source={{ uri: formData.photo }} style={styles.previewImage} />
                     ) : null}
+                    {isEditMode && (
+                        <SelectField
+                            label="Statut"
+                            selectedValue={formData.statut || ''}
+                            onSelect={(value) => updateFormData('statut', value)}
+                            options={Object.values(ElectionDTO.statut).map(s => ({ label: s, value: s }))}
+                            required
+                            error={errors.statut}
+                            icon="flag-outline"
+                        />
+                    )}
                 </View>
 
                 <View style={styles.section}>

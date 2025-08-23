@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockElections } from '@/mock-data/elections';
 import { ElectionDTO } from '@/lib/models/ElectionDTO';
+import { useElections } from '@/hooks/useElections';
 
 // Helper functions
 const formatDate = (dateString?: string) => {
@@ -38,15 +38,27 @@ const formatNumber = (num?: number) => {
 export default function ElectionDetail() {
     const { id } = useLocalSearchParams();
     const [election, setElection] = useState<ElectionDTO | null>(null);
+    const { obtenirElection, supprimerElection, loading, error } = useElections();
 
     useEffect(() => {
-        const foundElection = mockElections.find(e => e.externalIdElection === id);
-        if (foundElection) {
-            setElection(foundElection);
-        } else {
-            Alert.alert("Erreur", "Élection non trouvée.", [{ text: "OK", onPress: () => router.back() }]);
+        if (typeof id === 'string') {
+            const fetchElection = async () => {
+                const fetchedElection = await obtenirElection(id);
+                if (fetchedElection) {
+                    setElection(fetchedElection);
+                } else {
+                    Alert.alert("Erreur", "Élection non trouvée.", [{ text: "OK", onPress: () => router.back() }]);
+                }
+            };
+            fetchElection();
         }
     }, [id]);
+
+    useEffect(() => {
+        if (error) {
+            Alert.alert('Erreur', error);
+        }
+    }, [error]);
 
     const handleEdit = () => {
         router.push(`/election-form?id=${election?.externalIdElection}`);
@@ -61,22 +73,27 @@ export default function ElectionDetail() {
                 {
                     text: 'Supprimer',
                     style: 'destructive',
-                    onPress: () => {
-                        // Here you would typically call an API to delete the election
-                        // For now, we'll just navigate back
-                        Alert.alert('Succès', 'Élection supprimée (simulation)', [
-                            { text: 'OK', onPress: () => router.back() }
-                        ]);
+                    onPress: async () => {
+                        if (election?.externalIdElection) {
+                            const success = await supprimerElection(election.externalIdElection);
+                            if (success) {
+                                Alert.alert('Succès', 'Élection supprimée', [
+                                    { text: 'OK', onPress: () => router.replace('/(tabs)/election') }
+                                ]);
+                            }
+                            // L'erreur est gérée par le useEffect
+                        }
                     }
                 }
             ]
         );
     };
 
-    if (!election) {
+    if (loading || !election) {
         return (
             <View style={[styles.container, styles.centered]}>
-                <Text>Chargement...</Text>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement de l'élection...</Text>
             </View>
         );
     }
@@ -161,6 +178,10 @@ const styles = StyleSheet.create({
     centered: {
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#666',
     },
     header: {
         flexDirection: 'row',
