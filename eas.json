@@ -1,0 +1,49 @@
+{
+    "cli": {
+      "version": ">= 16.6.1",
+      "appVersionSource": "remote"
+    },
+    "build": {
+      "development": {
+        "developmentClient": true,
+        "distribution": "internal",
+        "android": {
+          "buildType": "apk"
+        },
+        "env": {
+          "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+          "EAS_NO_LOCKFILE": "1"
+        },
+        "channel": "development"
+      },
+      "preview": {
+        "distribution": "internal",
+        "android": {
+          "buildType": "apk"
+        },
+        "channel": "preview"
+      },
+      "cleartext": {
+        "distribution": "internal",
+        "android": {
+          "buildType": "apk"
+        },
+        "env": {
+          "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+          "EAS_NO_LOCKFILE": "1"
+        },
+        "channel": "cleartext"
+      },
+      "production": {
+        "autoIncrement": true,
+        "android": {
+          "buildType": "app-bundle"
+        },
+        "channel": "production"
+      }
+    },
+    "submit": {
+      "production": {}
+    }
+  }
+  
